@@ -873,6 +873,25 @@ tbody tr:hover{background:var(--bg-hover)}
 <div id="toast-c"></div>
 
 <script>
+   const GAS_URL = "https://script.google.com/macros/s/AKfycbzCAOj_It1caDH_V1gyR_1VTeOJ4weV2HDUy_MIhiF5MDflMG42LNaEea9SbllyGyw6sw/exec";
+
+async function callApi(action, data = {}) {
+  const response = await fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: action, data: data })
+  });
+  return await response.json();
+}
+
+// ตัวอย่างการเปลี่ยนวิธีเรียกใช้:
+// จากเดิม: google.script.run.withSuccessHandler(showData).getInventory();
+// เปลี่ยนเป็น:
+async function loadData() {
+  const res = await callApi('getInventory');
+  if(res.success) {
+    renderTable(res.data); // ฟังก์ชันวาดตารางเดิมของคุณ
+  }
+}
 'use strict';
 // ══════════════════════════════════════════════
 // STATE
@@ -1993,25 +2012,7 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key==='Escape'){document.querySelectorAll('.mo.open').forEach(m=>m.classList.remove('open'));if($('cart-panel').classList.contains('open'))toggleCart();closeBottomSheet();}
 });
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbzCAOj_It1caDH_V1gyR_1VTeOJ4weV2HDUy_MIhiF5MDflMG42LNaEea9SbllyGyw6sw/exec";
-
-async function callApi(action, data = {}) {
-  const response = await fetch(GAS_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: action, data: data })
-  });
-  return await response.json();
-}
-
-// ตัวอย่างการเปลี่ยนวิธีเรียกใช้:
-// จากเดิม: google.script.run.withSuccessHandler(showData).getInventory();
-// เปลี่ยนเป็น:
-async function loadData() {
-  const res = await callApi('getInventory');
-  if(res.success) {
-    renderTable(res.data); // ฟังก์ชันวาดตารางเดิมของคุณ
-  }
-}
+ 
 </script>
 </body>
 </html>
