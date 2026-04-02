@@ -1,0 +1,676 @@
+// ============================================================
+// ระบบเบิกพัสดุ — Code.gs  v3
+// + ลืมรหัสผ่าน | Barcode | Export | Enhanced Requests
+// ============================================================
+
+const SHEET_NAMES = {
+  USERS:           'Users',
+  CATEGORIES:      'Categories',
+  INVENTORY:       'Inventory',
+  REQUESTS:        'Requests',
+  REQUEST_ITEMS:   'Request_Items',
+  STOCK_IN:        'Stock_In',
+  PASSWORD_RESETS: 'Password_Resets',
+  LOGS:            'Logs',
+  SETTINGS:        'Settings'
+};
+
+// ─────────────────────────────────────────────
+// ENTRY POINT
+// ─────────────────────────────────────────────
+
+function doGet(e) {
+  initializeSheets();
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('ระบบเบิกพัสดุ')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// ─────────────────────────────────────────────
+// SHEET HELPERS
+// ─────────────────────────────────────────────
+
+function getSheet(name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) { sheet = ss.insertSheet(name); setupSheetHeaders(sheet, name); }
+  return sheet;
+}
+
+function setupSheetHeaders(sheet, name) {
+  const headers = {
+    Users:           ['UserID','Username','Password','FullName','Role','Email','CreatedAt'],
+    Categories:      ['CategoryID','CategoryName','Description','Color'],
+    Inventory:       ['ItemID','ItemName','CategoryID','Unit','Quantity','MinStock','PricePerUnit','Lot','ExpiryDate','Barcode','ImageURL','LastUpdated'],
+    Requests:        ['RequestID','UserID','RequestDate','Status','Note'],
+    Request_Items:   ['RequestID','ItemID','Quantity','Unit','Price'],
+    Stock_In:        ['StockInID','ItemID','QuantityAdded','Date','UserID','Note','Lot','ExpiryDate'],
+    Password_Resets: ['ResetID','UserID','Token','CreatedAt','ExpiresAt','Used'],
+    Logs:            ['LogID','Action','UserID','Timestamp','Detail'],
+    Settings:        ['Key','Value','Description']
+  };
+  if (headers[name]) {
+    sheet.getRange(1,1,1,headers[name].length).setValues([headers[name]]);
+    sheet.getRange(1,1,1,headers[name].length).setBackground('#1a2744').setFontColor('#ffffff').setFontWeight('bold');
+  }
+}
+
+function initializeSheets() {
+  Object.values(SHEET_NAMES).forEach(n => getSheet(n));
+  seedDefaultCategories();
+  seedDefaultSettings();
+  seedDefaultAdmin();
+}
+
+// ─────────────────────────────────────────────
+// SEEDS
+// ─────────────────────────────────────────────
+
+function seedDefaultCategories() {
+  const s = getSheet(SHEET_NAMES.CATEGORIES);
+  if (s.getDataRange().getValues().length > 1) return;
+  s.getRange(2,1,6,4).setValues([
+    ['CAT_001','อุปกรณ์สำนักงาน','ปากกา กระดาษ แฟ้ม','#4A90D9'],
+    ['CAT_002','อุปกรณ์ IT','คอมพิวเตอร์ อุปกรณ์เสริม','#7B68EE'],
+    ['CAT_003','วัสดุสิ้นเปลือง','หมึก กระดาษพิมพ์','#F0A500'],
+    ['CAT_004','อุปกรณ์ทำความสะอาด','น้ำยา ผ้า ไม้กวาด','#3FB950'],
+    ['CAT_005','อุปกรณ์ซ่อมบำรุง','เครื่องมือ อะไหล่','#F85149'],
+    ['CAT_006','อื่นๆ','รายการทั่วไป','#8B949E']
+  ]);
+}
+
+function seedDefaultSettings() {
+  const s = getSheet(SHEET_NAMES.SETTINGS);
+  if (s.getDataRange().getValues().length > 1) return;
+  const d = [
+    ['APP_NAME','ระบบเบิกพัสดุ','ชื่อระบบ'],
+    ['ORG_NAME','บริษัท XYZ จำกัด','ชื่อองค์กร'],
+    ['LOGO_URL','','URL โลโก้'],
+    ['LOGIN_TITLE','ยินดีต้อนรับ','หัวข้อหน้า Login'],
+    ['LOGIN_SUBTITLE','กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ','ข้อความใต้ Login'],
+    ['THEME_DEFAULT','dark','theme เริ่มต้น'],
+    ['LOW_STOCK_ALERT','10','สต็อกขั้นต่ำ'],
+    ['ENABLE_BARCODE','true','เปิด Barcode Scanner'],
+    ['CURRENCY','฿','สกุลเงิน'],
+    ['ADMIN_EMAIL','','Email Admin สำหรับรับแจ้งเตือน'],
+    ['FOOTER_TEXT','Powered by GAS Inventory','ข้อความ Footer'],
+  ];
+  s.getRange(2,1,d.length,3).setValues(d);
+}
+
+function seedDefaultAdmin() {
+  const s = getSheet(SHEET_NAMES.USERS);
+  if (s.getDataRange().getValues().length > 1) return;
+  s.appendRow([generateID('USR'),'admin',hashPassword('admin1234'),'ผู้ดูแลระบบ','ADMIN','admin@example.com',new Date().toISOString()]);
+}
+
+// ─────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────
+
+function generateID(p) { return p+'_'+Date.now()+'_'+Math.floor(Math.random()*9999); }
+
+function hashPassword(pw) {
+  const b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pw, Utilities.Charset.UTF_8);
+  return b.map(x=>('0'+(x&0xff).toString(16)).slice(-2)).join('');
+}
+
+function generateToken(len) {
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  return Array.from({length:len||8},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function sheetToObjects(sheet) {
+  const d = sheet.getDataRange().getValues();
+  if (d.length < 2) return [];
+  const h = d[0];
+  return d.slice(1).map(row => { const o={}; h.forEach((k,i)=>o[k]=row[i]); return o; });
+}
+
+function resp(ok, data, msg) { return JSON.stringify({success:ok, data, message:msg}); }
+
+function enrichInventory(items, categories) {
+  return items.map(item => {
+    const c = categories.find(x => x.CategoryID === item.CategoryID);
+    return {...item, CategoryName:c?c.CategoryName:'', CategoryColor:c?c.Color:'#8B949E'};
+  });
+}
+
+// ─────────────────────────────────────────────
+// PASSWORD RESET
+// ─────────────────────────────────────────────
+
+function requestPasswordReset(username) {
+  try {
+    const users = sheetToObjects(getSheet(SHEET_NAMES.USERS));
+    const user  = users.find(u => u.Username === username);
+    if (!user) return resp(false, null, 'ไม่พบชื่อผู้ใช้ในระบบ');
+
+    const email = user.Email || '';
+    const token = generateToken(8);
+    const now   = new Date();
+    const exp   = new Date(now.getTime() + 3600000); // 1hr
+
+    // invalidate old tokens
+    const prSheet = getSheet(SHEET_NAMES.PASSWORD_RESETS);
+    const prData  = prSheet.getDataRange().getValues();
+    const prH     = prData[0];
+    for (let i = 1; i < prData.length; i++) {
+      if (prData[i][prH.indexOf('UserID')] === user.UserID && prData[i][prH.indexOf('Used')] === false) {
+        prSheet.getRange(i+1, prH.indexOf('Used')+1).setValue(true);
+      }
+    }
+
+    prSheet.appendRow([generateID('RST'), user.UserID, token, now.toISOString(), exp.toISOString(), false]);
+    addLog('PASSWORD_RESET_REQUEST', user.UserID, `ขอรีเซ็ตรหัสผ่าน: ${username}`);
+
+    // Try to send email if email available
+    if (email && email.includes('@')) {
+      try {
+        const settingsObj = JSON.parse(getSettings()).data || {};
+        const appName = settingsObj.APP_NAME || 'ระบบเบิกพัสดุ';
+        MailApp.sendEmail({
+          to: email,
+          subject: `[${appName}] รหัสรีเซ็ตรหัสผ่านของคุณ`,
+          body: `สวัสดี ${user.FullName},\n\nรหัสรีเซ็ตรหัสผ่านของคุณคือ: ${token}\n\nรหัสนี้มีอายุ 1 ชั่วโมง\nหากคุณไม่ได้ขอรีเซ็ต กรุณาติดต่อ Admin\n\n${appName}`
+        });
+        return resp(true, {hasEmail:true}, `ส่งรหัส OTP ไปยัง ${email.replace(/(.{2}).+(@.+)/, '$1***$2')} แล้ว`);
+      } catch(mailErr) {
+        // mail failed but token still created
+      }
+    }
+
+    // No email – return masked token hint for admin to share
+    return resp(true, {hasEmail:false, token: email ? null : token},
+      email ? 'ส่งรหัส OTP ทางอีเมลแล้ว' : `ไม่พบอีเมล กรุณานำรหัสนี้ไปกรอก: ${token}`);
+  } catch(e) { return resp(false, null, e.message); }
+}
+
+function resetPasswordWithToken(username, token, newPassword) {
+  try {
+    if (!newPassword || newPassword.length < 6) return resp(false, null, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+
+    const users = sheetToObjects(getSheet(SHEET_NAMES.USERS));
+    const user  = users.find(u => u.Username === username);
+    if (!user) return resp(false, null, 'ไม่พบชื่อผู้ใช้');
+
+    const prSheet = getSheet(SHEET_NAMES.PASSWORD_RESETS);
+    const prData  = prSheet.getDataRange().getValues();
+    const prH     = prData[0];
+
+    for (let i = 1; i < prData.length; i++) {
+      const row = prData[i];
+      if (row[prH.indexOf('UserID')] === user.UserID &&
+          row[prH.indexOf('Token')]  === token.toUpperCase() &&
+          row[prH.indexOf('Used')]   === false) {
+
+        const exp = new Date(row[prH.indexOf('ExpiresAt')]);
+        if (new Date() > exp) return resp(false, null, 'รหัส OTP หมดอายุแล้ว กรุณาขอใหม่');
+
+        // mark used
+        prSheet.getRange(i+1, prH.indexOf('Used')+1).setValue(true);
+
+        // update password
+        const uSheet = getSheet(SHEET_NAMES.USERS);
+        const uData  = uSheet.getDataRange().getValues();
+        const uH     = uData[0];
+        for (let j = 1; j < uData.length; j++) {
+          if (uData[j][uH.indexOf('UserID')] === user.UserID) {
+            uSheet.getRange(j+1, uH.indexOf('Password')+1).setValue(hashPassword(newPassword));
+            break;
+          }
+        }
+        addLog('PASSWORD_RESET', user.UserID, `รีเซ็ตรหัสผ่านสำเร็จ: ${username}`);
+        return resp(true, null, 'รีเซ็ตรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบ');
+      }
+    }
+    return resp(false, null, 'รหัส OTP ไม่ถูกต้อง');
+  } catch(e) { return resp(false, null, e.message); }
+}
+
+// ─────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────
+
+function getSettings() {
+  try {
+    const rows = sheetToObjects(getSheet(SHEET_NAMES.SETTINGS));
+    const s = {}; rows.forEach(r=>{ if(r.Key) s[r.Key]=r.Value; });
+    return resp(true, s);
+  } catch(e) { return resp(false, null, e.message); }
+}
+
+function getAllSettingsWithDesc() {
+  try { return resp(true, sheetToObjects(getSheet(SHEET_NAMES.SETTINGS))); }
+  catch(e) { return resp(false, null, e.message); }
+}
+
+function updateSetting(key, value) {
+  try {
+    const s = getSheet(SHEET_NAMES.SETTINGS);
+    const d = s.getDataRange().getValues();
+    for (let i=1;i<d.length;i++) { if(d[i][0]===key){s.getRange(i+1,2).setValue(value);addLog('UPDATE_SETTING','SYSTEM',`${key}→${value}`);return resp(true,null,'บันทึกสำเร็จ');} }
+    s.appendRow([key,value,'']);
+    return resp(true, null, 'เพิ่ม Key ใหม่สำเร็จ');
+  } catch(e) { return resp(false, null, e.message); }
+}
+
+function bulkUpdateSettings(j) {
+  try { JSON.parse(j).forEach(s=>updateSetting(s.key,s.value)); return resp(true,null,'บันทึกสำเร็จ'); }
+  catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+
+function login(username, password) {
+  try {
+    const u = sheetToObjects(getSheet(SHEET_NAMES.USERS)).find(u=>u.Username===username&&u.Password===hashPassword(password));
+    if (!u) return resp(false,null,'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    addLog('LOGIN',u.UserID,`${username} เข้าสู่ระบบ`);
+    return resp(true,{UserID:u.UserID,Username:u.Username,FullName:u.FullName,Role:u.Role,Email:u.Email||''});
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function register(username, password, fullName, email) {
+  try {
+    const users = sheetToObjects(getSheet(SHEET_NAMES.USERS));
+    if (users.find(u=>u.Username===username)) return resp(false,null,'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+    const id = generateID('USR');
+    getSheet(SHEET_NAMES.USERS).appendRow([id,username,hashPassword(password),fullName,'USER',email||'',new Date().toISOString()]);
+    addLog('REGISTER',id,`สมัครสมาชิก: ${username}`);
+    return resp(true,null,'สมัครสมาชิกสำเร็จ');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────
+
+function getUsers() {
+  try {
+    return resp(true, sheetToObjects(getSheet(SHEET_NAMES.USERS))
+      .map(u=>({UserID:u.UserID,Username:u.Username,FullName:u.FullName,Role:u.Role,Email:u.Email||'',CreatedAt:u.CreatedAt})));
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function updateUser(userId, fullName, role, newPassword, email) {
+  try {
+    const s=getSheet(SHEET_NAMES.USERS), d=s.getDataRange().getValues(), h=d[0];
+    for(let i=1;i<d.length;i++){
+      if(d[i][h.indexOf('UserID')]===userId){
+        s.getRange(i+1,h.indexOf('FullName')+1).setValue(fullName);
+        s.getRange(i+1,h.indexOf('Role')+1).setValue(role);
+        s.getRange(i+1,h.indexOf('Email')+1).setValue(email||'');
+        if(newPassword) s.getRange(i+1,h.indexOf('Password')+1).setValue(hashPassword(newPassword));
+        addLog('UPDATE_USER',userId,`แก้ไขผู้ใช้: ${userId}`);
+        return resp(true,null,'อัปเดตสำเร็จ');
+      }
+    }
+    return resp(false,null,'ไม่พบผู้ใช้');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function deleteUser(userId) {
+  try {
+    const s=getSheet(SHEET_NAMES.USERS), d=s.getDataRange().getValues();
+    for(let i=1;i<d.length;i++){if(d[i][0]===userId){s.deleteRow(i+1);addLog('DELETE_USER',userId,'ลบผู้ใช้');return resp(true,null,'ลบสำเร็จ');}}
+    return resp(false,null,'ไม่พบผู้ใช้');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────────
+
+function getCategories() {
+  try { return resp(true, sheetToObjects(getSheet(SHEET_NAMES.CATEGORIES))); }
+  catch(e) { return resp(false,null,e.message); }
+}
+
+function addCategory(name, description, color) {
+  try {
+    if(!name||!name.trim()) return resp(false,null,'กรุณากรอกชื่อหมวดหมู่');
+    const cats=sheetToObjects(getSheet(SHEET_NAMES.CATEGORIES));
+    if(cats.find(c=>c.CategoryName===name.trim())) return resp(false,null,'ชื่อหมวดหมู่นี้มีอยู่แล้ว');
+    const id='CAT_'+String(Date.now()).slice(-6);
+    getSheet(SHEET_NAMES.CATEGORIES).appendRow([id,name.trim(),description||'',color||'#8B949E']);
+    addLog('ADD_CATEGORY','SYSTEM',`เพิ่มหมวดหมู่: ${name}`);
+    return resp(true,{CategoryID:id},'เพิ่มหมวดหมู่สำเร็จ');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function updateCategory(id, name, desc, color) {
+  try {
+    const s=getSheet(SHEET_NAMES.CATEGORIES),d=s.getDataRange().getValues();
+    for(let i=1;i<d.length;i++){
+      if(d[i][0]===id){s.getRange(i+1,2).setValue(name.trim());s.getRange(i+1,3).setValue(desc||'');s.getRange(i+1,4).setValue(color||'#8B949E');
+      addLog('UPDATE_CATEGORY','SYSTEM',`แก้ไข: ${id}`);return resp(true,null,'แก้ไขสำเร็จ');}
+    }
+    return resp(false,null,'ไม่พบหมวดหมู่');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function deleteCategory(id) {
+  try {
+    const inv=sheetToObjects(getSheet(SHEET_NAMES.INVENTORY)).filter(i=>i.CategoryID===id);
+    if(inv.length>0) return resp(false,null,`ไม่สามารถลบได้ มีสินค้า ${inv.length} รายการ`);
+    const s=getSheet(SHEET_NAMES.CATEGORIES),d=s.getDataRange().getValues();
+    for(let i=1;i<d.length;i++){if(d[i][0]===id){s.deleteRow(i+1);addLog('DELETE_CATEGORY','SYSTEM',`ลบ: ${id}`);return resp(true,null,'ลบสำเร็จ');}}
+    return resp(false,null,'ไม่พบหมวดหมู่');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────
+
+function getInventory() {
+  try {
+    return resp(true, enrichInventory(sheetToObjects(getSheet(SHEET_NAMES.INVENTORY)), sheetToObjects(getSheet(SHEET_NAMES.CATEGORIES))));
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function addItem(itemName,categoryId,unit,quantity,minStock,pricePerUnit,lot,expiryDate,barcode,imageUrl) {
+  try {
+    if(!itemName||!itemName.trim()) return resp(false,null,'กรุณากรอกชื่อสินค้า');
+    const id=generateID('ITM');
+    getSheet(SHEET_NAMES.INVENTORY).appendRow([id,itemName.trim(),categoryId||'',unit||'',Number(quantity||0),Number(minStock||0),Number(pricePerUnit||0),lot||'',expiryDate||'',barcode||'',imageUrl||'',new Date().toISOString()]);
+    addLog('ADD_ITEM','SYSTEM',`เพิ่มสินค้า: ${itemName}`);
+    return resp(true,{ItemID:id},'เพิ่มสินค้าสำเร็จ');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function updateItem(itemId,itemName,categoryId,unit,quantity,minStock,pricePerUnit,lot,expiryDate,barcode,imageUrl) {
+  try {
+    const s=getSheet(SHEET_NAMES.INVENTORY),d=s.getDataRange().getValues(),h=d[0];
+    const set=(col,val)=>s.getRange(d.findIndex((r,i)=>i>0&&r[h.indexOf('ItemID')]===itemId)+1,h.indexOf(col)+1).setValue(val);
+    for(let i=1;i<d.length;i++){
+      if(d[i][h.indexOf('ItemID')]===itemId){
+        s.getRange(i+1,h.indexOf('ItemName')+1).setValue(itemName.trim());
+        s.getRange(i+1,h.indexOf('CategoryID')+1).setValue(categoryId||'');
+        s.getRange(i+1,h.indexOf('Unit')+1).setValue(unit||'');
+        s.getRange(i+1,h.indexOf('Quantity')+1).setValue(Number(quantity||0));
+        s.getRange(i+1,h.indexOf('MinStock')+1).setValue(Number(minStock||0));
+        s.getRange(i+1,h.indexOf('PricePerUnit')+1).setValue(Number(pricePerUnit||0));
+        s.getRange(i+1,h.indexOf('Lot')+1).setValue(lot||'');
+        s.getRange(i+1,h.indexOf('ExpiryDate')+1).setValue(expiryDate||'');
+        s.getRange(i+1,h.indexOf('Barcode')+1).setValue(barcode||'');
+        s.getRange(i+1,h.indexOf('ImageURL')+1).setValue(imageUrl||'');
+        s.getRange(i+1,h.indexOf('LastUpdated')+1).setValue(new Date().toISOString());
+        addLog('UPDATE_ITEM','SYSTEM',`แก้ไข: ${itemId}`);
+        return resp(true,null,'แก้ไขสำเร็จ');
+      }
+    }
+    return resp(false,null,'ไม่พบสินค้า');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function deleteItem(itemId) {
+  try {
+    const s=getSheet(SHEET_NAMES.INVENTORY),d=s.getDataRange().getValues();
+    for(let i=1;i<d.length;i++){if(d[i][0]===itemId){s.deleteRow(i+1);addLog('DELETE_ITEM','SYSTEM',`ลบ: ${itemId}`);return resp(true,null,'ลบสำเร็จ');}}
+    return resp(false,null,'ไม่พบสินค้า');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// STOCK OUT — ตัดสต็อกทันที, ไม่รออนุมัติ
+// ─────────────────────────────────────────────
+
+function createRequest(userId, itemsJson, note) {
+  try {
+    const items = JSON.parse(itemsJson);
+    if (!items||!items.length) return resp(false,null,'กรุณาเลือกสินค้า');
+
+    const invSheet=getSheet(SHEET_NAMES.INVENTORY);
+    const invData=invSheet.getDataRange().getValues(), invH=invData[0];
+    const iIdx=invH.indexOf('ItemID'),qIdx=invH.indexOf('Quantity'),uIdx=invH.indexOf('Unit'),nIdx=invH.indexOf('ItemName');
+
+    // ตรวจสต็อกทั้งหมดก่อน
+    for (const ri of items) {
+      const row = invData.find((r,i)=>i>0&&r[iIdx]===ri.ItemID);
+      if (!row) return resp(false,null,`ไม่พบสินค้า: ${ri.ItemID}`);
+      if (Number(row[qIdx]) < Number(ri.Quantity))
+        return resp(false,null,`"${row[nIdx]}" สต็อกไม่เพียงพอ (คงเหลือ: ${row[qIdx]} ${row[uIdx]||''}) ต้องการ: ${ri.Quantity}`);
+    }
+
+    const reqId=generateID('REQ'), now=new Date().toISOString();
+    getSheet(SHEET_NAMES.REQUESTS).appendRow([reqId,userId,now,'SUCCESS',note||'']);
+
+    const riSheet=getSheet(SHEET_NAMES.REQUEST_ITEMS);
+    items.forEach(item=>{
+      const row=invData.find((r,i)=>i>0&&r[iIdx]===item.ItemID);
+      riSheet.appendRow([reqId,item.ItemID,item.Quantity,row?row[uIdx]:'',item.Price||0]);
+      for(let i=1;i<invData.length;i++){
+        if(invData[i][iIdx]===item.ItemID){
+          invSheet.getRange(i+1,qIdx+1).setValue(Number(invData[i][qIdx])-Number(item.Quantity));
+          invSheet.getRange(i+1,invH.indexOf('LastUpdated')+1).setValue(now);
+          break;
+        }
+      }
+    });
+
+    addLog('CREATE_REQUEST',userId,`เบิก: ${reqId} (${items.length} รายการ)`);
+    return resp(true,{RequestID:reqId},'เบิกพัสดุสำเร็จ ตัดสต็อกแล้ว');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function cancelRequest(requestId, userId) {
+  try {
+    const s=getSheet(SHEET_NAMES.REQUESTS),d=s.getDataRange().getValues(),h=d[0];
+    for(let i=1;i<d.length;i++){
+      if(d[i][h.indexOf('RequestID')]===requestId){
+        if(d[i][h.indexOf('Status')]==='CANCELLED') return resp(false,null,'ถูกยกเลิกแล้ว');
+        s.getRange(i+1,h.indexOf('Status')+1).setValue('CANCELLED');
+
+        const riRows=sheetToObjects(getSheet(SHEET_NAMES.REQUEST_ITEMS)).filter(r=>r.RequestID===requestId);
+        const invS=getSheet(SHEET_NAMES.INVENTORY),invD=invS.getDataRange().getValues(),invH=invD[0];
+        riRows.forEach(ri=>{
+          for(let j=1;j<invD.length;j++){
+            if(invD[j][invH.indexOf('ItemID')]===ri.ItemID){
+              invS.getRange(j+1,invH.indexOf('Quantity')+1).setValue(Number(invD[j][invH.indexOf('Quantity')])+Number(ri.Quantity));break;
+            }
+          }
+        });
+        addLog('CANCEL_REQUEST',userId,`ยกเลิก: ${requestId}`);
+        return resp(true,null,'ยกเลิกและคืนสต็อกสำเร็จ');
+      }
+    }
+    return resp(false,null,'ไม่พบคำขอ');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ดึง requests — admin ดูได้ทุกคน, user ดูเฉพาะตัวเอง
+// params: userId, role, filterUserId(admin only), dateFrom, dateTo, status
+function getRequests(userId, role, filterUserId, dateFrom, dateTo, statusFilter) {
+  try {
+    let requests=sheetToObjects(getSheet(SHEET_NAMES.REQUESTS));
+    const riRows=sheetToObjects(getSheet(SHEET_NAMES.REQUEST_ITEMS));
+    const inventory=sheetToObjects(getSheet(SHEET_NAMES.INVENTORY));
+    const categories=sheetToObjects(getSheet(SHEET_NAMES.CATEGORIES));
+    const users=sheetToObjects(getSheet(SHEET_NAMES.USERS));
+
+    // filter by role
+    if (role!=='ADMIN') requests=requests.filter(r=>r.UserID===userId);
+
+    // admin filters
+    if (role==='ADMIN' && filterUserId) requests=requests.filter(r=>r.UserID===filterUserId);
+    if (statusFilter) requests=requests.filter(r=>r.Status===statusFilter);
+    if (dateFrom) {
+      const df=new Date(dateFrom); df.setHours(0,0,0,0);
+      requests=requests.filter(r=>r.RequestDate&&new Date(r.RequestDate)>=df);
+    }
+    if (dateTo) {
+      const dt=new Date(dateTo); dt.setHours(23,59,59,999);
+      requests=requests.filter(r=>r.RequestDate&&new Date(r.RequestDate)<=dt);
+    }
+
+    const enriched=requests.map(req=>{
+      const items=riRows.filter(r=>r.RequestID===req.RequestID).map(ri=>{
+        const inv=inventory.find(i=>i.ItemID===ri.ItemID);
+        const cat=categories.find(c=>c.CategoryID===(inv?inv.CategoryID:''));
+        return {...ri,ItemName:inv?inv.ItemName:ri.ItemID,Unit:ri.Unit||(inv?inv.Unit:''),CategoryName:cat?cat.CategoryName:''};
+      });
+      const user=users.find(u=>u.UserID===req.UserID);
+      const total=items.reduce((s,i)=>s+Number(i.Quantity)*Number(i.Price||0),0);
+      return {...req,Items:items,UserName:user?user.FullName:req.UserID,TotalPrice:total};
+    });
+    return resp(true, enriched.reverse());
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// STOCK IN
+// ─────────────────────────────────────────────
+
+function addStockIn(itemId, qty, userId, note, lot, expiryDate) {
+  try {
+    const id=generateID('STK'), now=new Date().toISOString();
+    getSheet(SHEET_NAMES.STOCK_IN).appendRow([id,itemId,Number(qty),now,userId,note||'',lot||'',expiryDate||'']);
+    const s=getSheet(SHEET_NAMES.INVENTORY),d=s.getDataRange().getValues(),h=d[0];
+    for(let i=1;i<d.length;i++){
+      if(d[i][h.indexOf('ItemID')]===itemId){
+        s.getRange(i+1,h.indexOf('Quantity')+1).setValue(Number(d[i][h.indexOf('Quantity')])+Number(qty));
+        if(lot) s.getRange(i+1,h.indexOf('Lot')+1).setValue(lot);
+        if(expiryDate) s.getRange(i+1,h.indexOf('ExpiryDate')+1).setValue(expiryDate);
+        s.getRange(i+1,h.indexOf('LastUpdated')+1).setValue(now); break;
+      }
+    }
+    addLog('STOCK_IN',userId,`เติม: ${itemId} +${qty}`);
+    return resp(true,{StockInID:id},'เติมสินค้าสำเร็จ');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function getStockIn() {
+  try {
+    const rows=sheetToObjects(getSheet(SHEET_NAMES.STOCK_IN));
+    const inv=sheetToObjects(getSheet(SHEET_NAMES.INVENTORY));
+    const users=sheetToObjects(getSheet(SHEET_NAMES.USERS));
+    return resp(true, rows.map(r=>{
+      const i=inv.find(x=>x.ItemID===r.ItemID),u=users.find(x=>x.UserID===r.UserID);
+      return {...r,ItemName:i?i.ItemName:r.ItemID,Unit:i?i.Unit:'',UserName:u?u.FullName:r.UserID};
+    }).reverse());
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// LOGS
+// ─────────────────────────────────────────────
+
+function addLog(action, userId, detail) {
+  try { getSheet(SHEET_NAMES.LOGS).appendRow([generateID('LOG'),action,userId,new Date().toISOString(),detail]); } catch(e){}
+}
+
+function getLogs(limit) {
+  try {
+    const rows=sheetToObjects(getSheet(SHEET_NAMES.LOGS)).sort((a,b)=>new Date(b.Timestamp)-new Date(a.Timestamp));
+    return resp(true, limit?rows.slice(0,Number(limit)):rows);
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────────
+
+function getDashboard() {
+  try {
+    const s=JSON.parse(getSettings()).data||{};
+    const lowThr=parseInt(s.LOW_STOCK_ALERT)||10;
+    const inv=sheetToObjects(getSheet(SHEET_NAMES.INVENTORY));
+    const cats=sheetToObjects(getSheet(SHEET_NAMES.CATEGORIES));
+    const reqs=sheetToObjects(getSheet(SHEET_NAMES.REQUESTS));
+    const sIn=sheetToObjects(getSheet(SHEET_NAMES.STOCK_IN));
+    const users=sheetToObjects(getSheet(SHEET_NAMES.USERS));
+    const today=new Date(), tStr=today.toDateString();
+    const lowStock=inv.filter(i=>Number(i.Quantity)<=lowThr);
+
+    const catSummary=cats.map(cat=>{
+      const ci=inv.filter(i=>i.CategoryID===cat.CategoryID);
+      return {CategoryName:cat.CategoryName,Color:cat.Color,ItemCount:ci.length,
+        TotalQuantity:ci.reduce((s,i)=>s+Number(i.Quantity||0),0),
+        LowStockCount:ci.filter(i=>Number(i.Quantity)<=lowThr).length};
+    });
+
+    const monthly={};
+    for(let m=5;m>=0;m--){
+      const d=new Date(today.getFullYear(),today.getMonth()-m,1);
+      const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      monthly[k]={out:0,in:0,label:d.toLocaleDateString('th-TH',{month:'short',year:'2-digit'})};
+    }
+    reqs.forEach(r=>{if(r.Status==='SUCCESS'){const k=String(r.RequestDate||'').substring(0,7);if(monthly[k])monthly[k].out++;}});
+    sIn.forEach(r=>{const k=String(r.Date||'').substring(0,7);if(monthly[k])monthly[k].in++;});
+
+    return resp(true,{
+      totalItems:inv.length, totalCategories:cats.length,
+      totalQuantity:inv.reduce((s,i)=>s+Number(i.Quantity||0),0),
+      lowStockCount:lowStock.length, lowStockItems:enrichInventory(lowStock,cats),
+      totalRequests:reqs.filter(r=>r.Status==='SUCCESS').length,
+      todayRequests:reqs.filter(r=>new Date(r.RequestDate).toDateString()===tStr).length,
+      todayStockIn:sIn.filter(r=>new Date(r.Date).toDateString()===tStr).length,
+      totalUsers:users.length, monthlyTrend:Object.values(monthly), catSummary,
+      topItems:enrichInventory([...inv].sort((a,b)=>Number(b.Quantity)-Number(a.Quantity)).slice(0,5),cats)
+    });
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// BARCODE — ดึงข้อมูลสินค้าสำหรับสร้าง Barcode
+// ─────────────────────────────────────────────
+
+function getItemsForBarcode(filterEmpty) {
+  try {
+    const inv=sheetToObjects(getSheet(SHEET_NAMES.INVENTORY));
+    const cats=sheetToObjects(getSheet(SHEET_NAMES.CATEGORIES));
+    let items = enrichInventory(inv, cats);
+    if (filterEmpty==='true') items = items.filter(i=>i.Barcode&&i.Barcode.trim());
+    return resp(true, items);
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+function saveGeneratedBarcode(itemId, barcode) {
+  try {
+    const s=getSheet(SHEET_NAMES.INVENTORY),d=s.getDataRange().getValues(),h=d[0];
+    for(let i=1;i<d.length;i++){
+      if(d[i][h.indexOf('ItemID')]===itemId){
+        s.getRange(i+1,h.indexOf('Barcode')+1).setValue(barcode);
+        s.getRange(i+1,h.indexOf('LastUpdated')+1).setValue(new Date().toISOString());
+        addLog('UPDATE_BARCODE','SYSTEM',`สร้าง Barcode: ${itemId} = ${barcode}`);
+        return resp(true,null,'บันทึก Barcode สำเร็จ');
+      }
+    }
+    return resp(false,null,'ไม่พบสินค้า');
+  } catch(e) { return resp(false,null,e.message); }
+}
+
+// ─────────────────────────────────────────────
+// EXPORT — สรุปรายการเบิก (HTML table for print)
+// ─────────────────────────────────────────────
+
+function getExportData(type, userId, role, dateFrom, dateTo) {
+  try {
+    const reqs = JSON.parse(getRequests(userId, role, '', dateFrom, dateTo, 'SUCCESS')).data||[];
+    const s = JSON.parse(getSettings()).data||{};
+    return resp(true, { requests:reqs, settings:s });
+  } catch(e) { return resp(false,null,e.message); }
+}
+// --- เพิ่มใหม่: ฟังก์ชันสำหรับ Admin ลบคำขอ ---
+function deleteRequestByAdmin(reqId) {
+  try {
+    const s = getSheet(SHEET_NAMES.REQUESTS);
+    const data = s.getDataRange().getValues();
+    const headers = data[0];
+    const idIdx = headers.indexOf('RequestID') > -1 ? headers.indexOf('RequestID') : 0; // เดาว่า ID อยู่คอลัมน์แรก
+    
+    for(let i=1; i<data.length; i++) {
+      if(data[i][idIdx] === reqId) {
+        s.deleteRow(i + 1);
+        addLog('DELETE_REQ', 'ADMIN', `ลบคำขอเบิก: ${reqId}`);
+        return resp(true, null, 'ลบคำขอสำเร็จ');
+      }
+    }
+    return resp(false, null, 'ไม่พบข้อมูลคำขอ');
+  } catch(e) { return resp(false, null, e.message); }
+}
