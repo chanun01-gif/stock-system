@@ -397,6 +397,8 @@
       const json = await res.json();
       console.log(json);
     }
+  </script>
+
 window.onload = function() {
   google.script.run.withSuccessHandler(function(s) {
     if (s && s.webName) document.getElementById('systemName').textContent = s.webName;
