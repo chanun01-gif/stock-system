@@ -1017,14 +1017,19 @@ async function prefetchForLogin() {
 }
 
 function showLogin() {
-  document.getElementById('loginPage').className = 'page active';
-  document.getElementById('appPage').style.display = 'none';
+  const lp = document.getElementById('loginPage');
+  const ap = document.getElementById('appPage');
+  lp.style.display = 'flex';
+  ap.style.display  = 'none';
+  ap.classList.remove('active');
 }
 
 function showApp() {
-  document.getElementById('loginPage').className = 'page';
-  document.getElementById('appPage').style.display = 'flex';
-  document.getElementById('appPage').classList.add('active');
+  const lp = document.getElementById('loginPage');
+  const ap = document.getElementById('appPage');
+  lp.style.display = 'none';          // ซ่อน login อย่างแน่นอน
+  ap.style.display  = 'flex';
+  ap.classList.add('active');
   buildNav();
   startClock();
   showSection('home');
