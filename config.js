@@ -1,1 +1,1 @@
-window.GAS_URL = 'https://script.googleusercontent.com/a/macros/tu.ac.th/echo?user_content_key=AWDtjMVP6x_vLwnORsuzl_V6cxPdnMSlU6cT3DuFRucEX-i1wSktSd0mE0dUv1Jt7FUTY-dAnsvW79iJbK4MtLtRfy8QcvbkmkUNw3SZRiBnreRD3UwkToA41FNWITKxzTzmoMtXLV0xz1EwKFMjKWw33c7zfbJvPxK9HOoO4sK1UhmEYqz7aQKoFE7QH1quzFupPy-g3v2D4UVWUdb322zToSDJ76JPVxRiBARH1WWl6-5kYrlMb_Ev8Sw2Nla6WKHp8MyRDc5ZwIap93PHm9Pe-xzNEz0kcYd13lF4ZvEq&lib=MXzzl41ENvzYemcn_3ycNml0iYKxH7YhB';
+window.GAS_URL = 'https://script.google.com/macros/s/AKfycbwV8ZLrzdw44lae6hgATHiVw4yVL2jew_rzRwHkKKTEwB2lart7RPokI-EFCpJYD-VZ/exec';
