@@ -952,7 +952,16 @@ const cc = (...keys) => keys.forEach(k => delete _CACHE[k]);
 const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const encP = obj => encodeURIComponent(JSON.stringify(obj));
 const decP = s => JSON.parse(decodeURIComponent(s));
-const fmtDate = s => s ? new Date(s).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+// fmtDate: safe for ISO (2025-04-24) and GAS Thai strings (24/04/2568 14:30)
+const fmtDate = s => {
+  if (!s || s === '-') return '—';
+  const str = String(s);
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    try { const d=new Date(str); if(!isNaN(d)) return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}); } catch(e) {}
+  }
+  // Already GAS-formatted string (e.g. "24/04/2568 14:30") — show date part only
+  return str.split(' ')[0] || '—';
+};
 const fmtMoney = n => Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const $= id => document.getElementById(id);
 const loadR = c => `<tr><td colspan="${c}"><div class="sec-ld"><div class="nc nc-sm"><div class="nc__d"></div><div class="nc__d"></div><div class="nc__d"></div><div class="nc__d"></div></div><div class="sec-ld-t">กำลังโหลด...</div></div></td></tr>`;
@@ -990,7 +999,7 @@ function api(action, data = {}) {
 function hidePL(msg) {
   const el = $('PL');
   if (msg) $('PLtxt').textContent = msg;
-  setTimeout(() => el.classList.add('gone'), 400);
+  setTimeout(() => { if (el) el.classList.add('gone'); }, 300);
 }
 function setPLtxt(msg) { const el = $('PLtxt'); if (el) el.textContent = msg; }
 
@@ -1023,25 +1032,27 @@ function stripAriaHidden() {
 
 // ─── LOGO SYSTEM ──────────────────────────────────────────
 function applyLogo(emoji, url, bgCss) {
-  const val = bgCss || 'none';
-  document.documentElement.style.setProperty('--logo-bg', val);
-  // Update all logo elements
-  const logos = [document.getElementById('sbLogo'), document.getElementById('pinLogo')];
-  logos.forEach(el => {
+  // Default to gold gradient if no bg specified
+  const val = (bgCss && bgCss !== 'none') ? bgCss : (url ? 'none' : 'linear-gradient(135deg,#d4a017,#f0c040)');
+  const bg  = bgCss || (url ? 'none' : 'linear-gradient(135deg,#d4a017,#f0c040)');
+  document.documentElement.style.setProperty('--logo-bg', bg);
+  ['sbLogo', 'pinLogo'].forEach(id => {
+    const el = $(id);
     if (!el) return;
+    el.style.background = bg;
     el.innerHTML = '';
-    if (url) {
+    if (url && url.trim()) {
+      // Create img with explicit inline styles — CSS class alone is not enough after innerHTML clear
       const img = document.createElement('img');
-      img.src = url; img.alt = 'logo'; img.onerror = () => { el.innerHTML = emoji || '📦'; };
+      img.src = url.trim();
+      img.alt = 'logo';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block';
+      img.onerror = function() { el.innerHTML = ''; el.textContent = emoji || '📦'; };
       el.appendChild(img);
     } else {
       el.textContent = emoji || '📦';
     }
   });
-  const pinLogo = $('pinLogo');
-  if (pinLogo) pinLogo.style.background = val;
-  const sbLogo = $('sbLogo');
-  if (sbLogo) sbLogo.style.background = val;
 }
 function refreshLogoPrev() {
   const noB = $('setNoB')?.checked;
@@ -1212,40 +1223,41 @@ async function saveAutoApprove(toggleEl) {
 
 // ─── SETTINGS APPLY ───────────────────────────────────────
 function applySettings(s) {
-  if (!s || !Object.keys(s).length) return;
-  // Title
-  const name = s.webName || s.setName || 'ระบบจัดการพัสดุ';
+  if (!s || typeof s !== 'object' || !Object.keys(s).length) return;
+  // System name
+  const name = s.webName || 'ระบบจัดการพัสดุ';
   document.title = name;
-  const sbTitle = $('sbTitle');
-  if (sbTitle) sbTitle.textContent = name;
-  const pinTtl = $('pinTtl');
-  if (pinTtl) pinTtl.textContent = name;
-  // Logo
-  const emoji = s.logoEmoji || s.setLogo || '📦';
-  const url = s.logoUrl || s.setLogoUrl || '';
-  const noB = s.logoBgNone === 'true' || s.setNoB === 'true';
-  const c1 = s.logoBgColor || s.setC1 || '#d4a017';
-  const c2 = s.logoBgColor2 || s.setC2 || '#f0c040';
-  const bg = noB ? 'none' : `linear-gradient(135deg,${c1},${c2})`;
+  const sbTitle = $('sbTitle'); if (sbTitle) sbTitle.textContent = name;
+  const pinTtl = $('pinTtl'); if (pinTtl) pinTtl.textContent = name;
+  // Logo — read all logo fields from settings
+  const emoji = s.logoEmoji || '📦';
+  const url   = s.logoUrl   || '';              // URL logo (if set)
+  const noB   = s.logoBgNone === 'true';
+  const c1    = s.logoBgColor  || '#d4a017';
+  const c2    = s.logoBgColor2 || '#f0c040';
+  const bg    = noB ? 'none' : `linear-gradient(135deg,${c1},${c2})`;
   applyLogo(emoji, url, bg);
-  // Approval
-  const reqApv = s.requireApproval !== undefined ? s.requireApproval : s.setReqApv;
-  if (reqApv !== undefined) _setApvState(reqApv === 'true' || reqApv === true);
-  // Fill form if on settings page
+  // Approval state
+  if (s.requireApproval !== undefined) {
+    _setApvState(s.requireApproval === 'true' || s.requireApproval === true);
+  }
+  // Fill settings form only if settings page elements exist and are accessible
   _fillSettingsForm(s);
 }
 function _fillSettingsForm(s) {
-  if (!$('setName')) return;
-  $('setName').value = s.webName || s.setName || '';
-  $('setLogo').value = s.logoEmoji || s.setLogo || '📦';
-  $('setLogoUrl').value = s.logoUrl || s.setLogoUrl || '';
-  $('setC1').value = s.logoBgColor || s.setC1 || '#d4a017';
-  $('setC2').value = s.logoBgColor2 || s.setC2 || '#f0c040';
-  $('setNoB').checked = s.logoBgNone === 'true' || s.setNoB === 'true';
-  $('setOrg').value = s.orgName || s.setOrg || '';
-  $('setMaxQty').value = s.maxRequestQty || s.setMaxQty || '50';
-  $('setReqApv').value = (s.requireApproval === 'true' || s.requireApproval === true || s.setReqApv === 'true') ? 'true' : 'false';
-  refreshLogoPrev();
+  if (!$('setName')) return;     // guard: settings section not in DOM (shouldn't happen)
+  try {
+    $('setName').value  = s.webName      || '';
+    $('setLogo').value  = s.logoEmoji    || '📦';
+    $('setLogoUrl').value = s.logoUrl    || '';   // ← logo URL field
+    $('setC1').value    = s.logoBgColor  || '#d4a017';
+    $('setC2').value    = s.logoBgColor2 || '#f0c040';
+    $('setNoB').checked = s.logoBgNone   === 'true';
+    $('setOrg').value   = s.orgName      || '';
+    $('setMaxQty').value= s.maxRequestQty|| '50';
+    $('setReqApv').value= (s.requireApproval === 'true' || s.requireApproval === true) ? 'true' : 'false';
+    refreshLogoPrev();
+  } catch(e) { console.warn('_fillSettingsForm error:', e); }
 }
 
 // ─── INIT ─────────────────────────────────────────────────
@@ -1253,19 +1265,25 @@ function _fillSettingsForm(s) {
   applyTheme();
   startClock();
   try {
-    setPLtxt('กำลังโหลดการตั้งค่า...');
-    const settings = await api('getSettings').catch(() => ({}));
-    if (settings && Object.keys(settings).length) {
+    setPLtxt('กำลังเชื่อมต่อ GAS...');
+    // Try settings first (fast, low payload)
+    const settings = await api('getSettings').catch(() => null);
+    if (settings && typeof settings === 'object' && Object.keys(settings).length > 0) {
       sc('settings', settings);
       applySettings(settings);
+    } else if (settings === null) {
+      // GAS unreachable — show warning but continue
+      console.warn('GAS ไม่ตอบสนอง — ตรวจสอบว่า Deploy แล้วหรือยัง');
     }
     setPLtxt('กำลังโหลดข้อมูลพัสดุ...');
     await loadPubStock();
-    setPLtxt('พร้อมใช้งาน!');
-    hidePL('พร้อมใช้งาน!');
+    hidePL();
   } catch (e) {
     console.error('Init error:', e);
-    hidePL('พร้อมใช้งาน');
+    hidePL();
+    // Show connection error in stock table
+    const tb = $('pubTb');
+    if (tb) tb.innerHTML = emptyR(6, `⚠️ เชื่อมต่อระบบล้มเหลว: ${e.message}<br><span style="font-size:.75rem">ตรวจสอบ GAS URL และ Deploy ใหม่</span>`);
   }
 })();
 
@@ -1507,11 +1525,21 @@ async function loadPubStock(force = false) {
   try {
     const res = await api('getProducts');
     const list = Array.isArray(res) ? res : (res?.products || []);
+    if (!list.length && !Array.isArray(res)) {
+      // Possibly GAS error object
+      tb.innerHTML = emptyR(6, `⚠️ GAS ตอบกลับ: ${JSON.stringify(res).slice(0,100)}`);
+      return;
+    }
     ALL_PRODS = list;
     sc('products', list);
     renderPubStock(list);
     fillPubCatFilter(list);
-  } catch (e) { tb.innerHTML = emptyR(6, '⚠️ โหลดข้อมูลล้มเหลว: ' + e.message); }
+  } catch (e) {
+    tb.innerHTML = emptyR(6,
+      `⚠️ โหลดข้อมูลล้มเหลว: ${e.message}` +
+      (e.message.includes('Timeout') ? `<br><small>GAS ไม่ตอบสนอง — Deploy ใหม่ หรือตรวจ GAS_URL</small>` : '')
+    );
+  }
 }
 function fillPubCatFilter(list) {
   const cats = [...new Set(list.map(p => p.category).filter(Boolean))].sort();
@@ -1527,11 +1555,15 @@ function renderPubStock(list) {
   if (!tb) return;
   const q = $('pubSearch')?.value?.toLowerCase() || '';
   const cat = $('pubCatF')?.value || '';
-  const active = list.filter(p => p.status === 'Active').filter(p =>
-    (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || p.barcode?.includes(q)) &&
+  // Accept Active, empty, or undefined status — GAS defaults to 'Active'
+  const active = list.filter(p => !p.status || p.status === 'Active' || p.status === 'active').filter(p =>
+    (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || String(p.barcode || '').includes(q)) &&
     (!cat || p.category === cat)
   );
-  if (!active.length) { tb.innerHTML = emptyR(6, '🔍 ไม่พบพัสดุ'); return; }
+  if (!active.length) {
+    tb.innerHTML = emptyR(6, list.length > 0 ? '🔍 ไม่พบพัสดุที่ค้นหา' : '📦 ยังไม่มีข้อมูลพัสดุ — กรุณาเรียก setupSystem ใน GAS ก่อน');
+    return;
+  }
   tb.innerHTML = active.map(p => {
     const st = Number(p.stock || 0);
     const mn = Number(p.minStock || 0);
@@ -2309,25 +2341,24 @@ async function loadSettingsPage() {
 async function handleSettings(e) {
   e.preventDefault();
   showLoading('กำลังบันทึก...');
-  const noB = $('setNoB').checked;
   const data = {
-    webName: $('setName').value,
-    logoEmoji: $('setLogo').value,
-    logoUrl: $('setLogoUrl').value,
-    logoBgColor: $('setC1').value,
+    webName:      $('setName').value,
+    logoEmoji:    $('setLogo').value || '📦',
+    logoUrl:      $('setLogoUrl').value.trim(),  // ← persist URL logo
+    logoBgColor:  $('setC1').value,
     logoBgColor2: $('setC2').value,
-    logoBgNone: noB ? 'true' : 'false',
-    orgName: $('setOrg').value,
-    maxRequestQty: $('setMaxQty').value,
+    logoBgNone:   $('setNoB').checked ? 'true' : 'false',
+    orgName:      $('setOrg').value,
+    maxRequestQty:$('setMaxQty').value,
     requireApproval: $('setReqApv').value,
   };
   try {
     const res = await api('saveSettings', data);
     if (res.success) {
       sc('settings', data);
+      applySettings(data);
       _setApvState(data.requireApproval === 'true');
       showOk(res.message);
-      applySettings(data);
     } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
