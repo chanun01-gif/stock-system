@@ -271,6 +271,9 @@ textarea.fc{min-height:68px;resize:vertical}
 .modal-body{padding:16px!important}
 .modal-footer{padding:11px 16px!important;border-top:1px solid var(--border)!important;gap:7px!important}
 .swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important}
+/* Fix Swal z-index to appear above Bootstrap modals & backdrop */
+.swal2-container{z-index:100000!important}
+.swal2-backdrop-show{z-index:99999!important}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:999}
 
 /* ─── DARK MODE overrides ─── */
@@ -1116,16 +1119,20 @@ function onSettingsApvChange(){
 async function saveAutoApprove(toggleEl){
   const autoOn=toggleEl.checked; // autoOn=true → requireApproval=false
   const requireApproval=!autoOn;
-  // Optimistic update
+  // Optimistic update UI immediately
   _setApvState(requireApproval);
+  // Also update cache immediately so navigating to settings shows correct value
+  const currentSettings=getCache('settings')||{};
+  setCache('settings',{...currentSettings,requireApproval:requireApproval?'true':'false'});
   try{
     const res=await api('saveSettings',{requireApproval:requireApproval?'true':'false'});
     if(!res||!res.success){
-      // Revert
+      // Revert both UI and cache
       _setApvState(!requireApproval);
+      const revert=getCache('settings')||{};
+      setCache('settings',{...revert,requireApproval:(!requireApproval)?'true':'false'});
       showErr('บันทึกไม่สำเร็จ: '+(res?.message||''));
     } else {
-      setCache('settings',null); // invalidate
       Swal.fire({toast:true,position:'top-end',icon:'success',title:autoOn?'⚡ Auto-approve เปิด':'⏸ ต้องอนุมัติ',timer:1800,showConfirmButton:false});
     }
   }catch(e){ _setApvState(!requireApproval); showErr(e.message); }
@@ -1166,12 +1173,16 @@ function applySettings(s){
   document.getElementById('pinTitle').textContent=name;
   document.title=name;
   applyLogoToPage(emoji,url,bgCss);
+  // Merge into existing cache so saveAutoApprove's optimistic update isn't overwritten
+  const existing=getCache('settings')||{};
+  const merged={...s,...Object.fromEntries(Object.entries(existing).filter(([k])=>k==='requireApproval'))};
+  // requireApproval: use current cache if available (user may have changed via toggle), else server value
+  const reqApv = existing.requireApproval !== undefined ? existing.requireApproval : (s.requireApproval||'true');
+  merged.requireApproval = reqApv;
+  _apvRequireApproval = reqApv !== 'false';
+  setCache('settings', {...s, requireApproval: reqApv});
   // Populate settings form if open
-  if(document.getElementById('setName')) _fillSettingsForm(s);
-  // Cache approval state
-  const req=s.requireApproval!=='false';
-  _apvRequireApproval=req;
-  setCache('settings',s);
+  if(document.getElementById('setName')) _fillSettingsForm({...s, requireApproval: reqApv});
 }
 
 function _fillSettingsForm(s){
@@ -1780,11 +1791,12 @@ async function handleSettings(e){
   };
   const res=await api('saveSettings',data);
   if(res.success){
-    setCache('settings',null); // invalidate
-    // Sync approval state immediately
+    // Update cache with all new values so they persist
+    setCache('settings',data);
+    // Sync approval state from settings form
     _setApvState(data.requireApproval==='true');
     showOk(res.message);
-    loadSettingsPage();
+    applySettings(data);
   }else showErr(res.message);
 }
 function switchStab(idx){
@@ -2016,14 +2028,44 @@ function loadR(c){return `<tr><td colspan="${c}" style="text-align:center;paddin
 function emptyR(c,m){return `<tr><td colspan="${c}" style="text-align:center;padding:28px;color:var(--muted)">${m}</td></tr>`;}
 function secLoader(){return `<tr><td colspan="20"><div class="sec-loader"><div class="newtons-cradle" style="--uib-size:42px"><div class="newtons-cradle__dot"></div><div class="newtons-cradle__dot"></div><div class="newtons-cradle__dot"></div><div class="newtons-cradle__dot"></div></div><div class="sec-loader-txt">กำลังโหลด...</div></div></td></tr>`;}
 function secLoaderDiv(){return `<div class="sec-loader"><div class="newtons-cradle"><div class="newtons-cradle__dot"></div><div class="newtons-cradle__dot"></div><div class="newtons-cradle__dot"></div><div class="newtons-cradle__dot"></div></div><div class="sec-loader-txt">กำลังโหลด...</div></div>`;}
-function showLoading(msg){Swal.fire({title:msg||'กำลังดำเนินการ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});}
-function showOk(msg){Swal.fire({icon:'success',title:'สำเร็จ!',text:msg,timer:2000,showConfirmButton:false});}
-function showErr(msg){Swal.fire({icon:'error',title:'เกิดข้อผิดพลาด',text:String(msg||'Unknown error')});}
+function showLoading(msg){
+  // Fix Bootstrap aria-hidden conflict: remove aria-hidden from .main before showing Swal
+  document.querySelector('.main')?.removeAttribute('aria-hidden');
+  Swal.fire({title:msg||'กำลังดำเนินการ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+}
+function showOk(msg){
+  document.querySelector('.main')?.removeAttribute('aria-hidden');
+  Swal.fire({icon:'success',title:'สำเร็จ!',text:msg,timer:2000,showConfirmButton:false});
+}
+function showErr(msg){
+  document.querySelector('.main')?.removeAttribute('aria-hidden');
+  Swal.fire({icon:'error',title:'เกิดข้อผิดพลาด',text:String(msg||'Unknown error')});
+}
 
 /* ── NOTE: เพิ่มใน Code.gs (GAS) switch statement: ──────────
    case 'adminResetPin': return adminResetPin(data.userId);
    ฟังก์ชัน adminResetPin() มีอยู่แล้ว แค่ยังไม่ได้เปิด
 ──────────────────────────────────────────────────────────── */
+
+// ─── FIX: Bootstrap modal + SweetAlert2 aria-hidden conflict ──
+// Bootstrap adds aria-hidden="true" to .main when any modal opens.
+// This blocks Swal from being accessible. We strip it after modal hides.
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.addEventListener('hidden.bs.modal', () => {
+    // Small delay so Bootstrap finishes its cleanup, then remove aria-hidden
+    setTimeout(() => {
+      document.querySelector('.main')?.removeAttribute('aria-hidden');
+      // Also ensure Swal container is visible if queued
+      document.querySelector('.swal2-container')?.removeAttribute('aria-hidden');
+    }, 50);
+  });
+  // Also fix when modal is shown (Bootstrap hides backdrop siblings)
+  document.body.addEventListener('show.bs.modal', () => {
+    setTimeout(() => {
+      document.querySelector('.main')?.removeAttribute('aria-hidden');
+    }, 50);
+  });
+});
 </script>
 </body>
 </html>
