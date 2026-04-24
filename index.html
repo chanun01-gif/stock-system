@@ -1552,21 +1552,21 @@ async function loadDashboard() {
   try {
     const res = await api('getDashboardStats').catch(() => null);
     if (!res) return;
+    // GAS returns: totalProducts, lowStockCount, pendingCount, todayCount, totalValue, lowStockItems, monthlyTrend
     if ($('s1')) $('s1').textContent = res.totalProducts ?? '—';
-    if ($('s2')) $('s2').textContent = res.lowStock ?? '—';
-    if ($('s3')) $('s3').textContent = res.pendingRequests ?? '—';
-    if ($('s4')) $('s4').textContent = res.todayRequests ?? '—';
+    if ($('s2')) $('s2').textContent = res.lowStockCount ?? '—';
+    if ($('s3')) $('s3').textContent = res.pendingCount ?? '—';
+    if ($('s4')) $('s4').textContent = res.todayCount ?? '—';
     if ($('s5')) $('s5').textContent = res.totalValue ? fmtMoney(res.totalValue) : '—';
     // Update pending badge
     const badge = $('pendingBadge');
-    if (badge && res.pendingRequests > 0) {
-      badge.style.display = '';
-      badge.textContent = res.pendingRequests;
-    } else if (badge) badge.style.display = 'none';
+    const pc = res.pendingCount || 0;
+    if (badge && pc > 0) { badge.style.display = ''; badge.textContent = pc; }
+    else if (badge) badge.style.display = 'none';
     // Low stock table
     if ($('lowTb') && res.lowStockItems) renderLowStock(res.lowStockItems);
-    // Trend chart
-    if (res.trend) renderTrendChart(res.trend);
+    // Trend chart — GAS returns monthlyTrend: [{label, count}]
+    if (res.monthlyTrend) renderTrendChart(res.monthlyTrend);
   } catch (e) { console.warn('Dashboard stats error:', e); }
 }
 function renderLowStock(items) {
@@ -1580,15 +1580,17 @@ function renderLowStock(items) {
     <td class="muted">${p.minStock ?? 0}</td>
   </tr>`).join('');
 }
-function renderTrendChart(data) {
+function renderTrendChart(trend) {
   const ctx = $('trendChart');
   if (!ctx || !window.Chart) return;
   if (_CHARTS.trend) _CHARTS.trend.destroy();
+  // GAS returns monthlyTrend: [{label:'ม.ค. 68', count:5}, ...]
+  const arr = Array.isArray(trend) ? trend : [];
   _CHARTS.trend = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.labels || [],
-      datasets: [{ label: 'จำนวนเบิก', data: data.values || [], fill: true,
+      labels: arr.map(d => d.label || ''),
+      datasets: [{ label: 'จำนวนเบิก', data: arr.map(d => d.count || 0), fill: true,
         backgroundColor: 'rgba(44,95,232,.08)', borderColor: '#2c5fe8', tension: 0.4,
         pointBackgroundColor: '#2c5fe8', pointRadius: 3 }]
     },
@@ -1715,12 +1717,15 @@ async function handleProd(e) {
   bootstrap.Modal.getOrCreateInstance($('prodModal')).hide();
   showLoading();
   try {
+    // GAS saveProduct expects: row, barcode, name, categoryId, category (name), unit, price, minStock, maxStock, location, image, description
+    const catSel = $('pCat');
+    const catName = $('pCatName').value || catSel.options[catSel.selectedIndex]?.textContent || '';
     const res = await api('saveProduct', {
       row: $('pRow').value,
       name: $('pName').value,
       barcode: $('pBarcode').value,
-      categoryId: $('pCat').value,
-      categoryName: $('pCatName').value || $('pCat').options[$('pCat').selectedIndex]?.textContent || '',
+      categoryId: catSel.value,
+      category: catName,          // GAS uses data.category (not categoryName)
       unit: $('pUnit').value,
       price: $('pPrice').value,
       minStock: $('pMin').value,
@@ -1750,6 +1755,8 @@ function openAdj(id, name, stock, unit) {
   $('adjDisp').value = `${name} (คงเหลือ: ${stock} ${unit})`;
   $('adjQty').value = '';
   $('adjNote').value = '';
+  // Store unit for submission
+  $('adjDisp').dataset.unit = unit;
   bootstrap.Modal.getOrCreateInstance($('adjModal')).show();
 }
 async function handleAdj(e) {
@@ -1757,7 +1764,15 @@ async function handleAdj(e) {
   bootstrap.Modal.getOrCreateInstance($('adjModal')).hide();
   showLoading();
   try {
-    const res = await api('adjustStock', { productId: $('adjId').value, qty: $('adjQty').value, note: $('adjNote').value, adminName: CU?.name || '' });
+    // GAS adjustStock expects: productId, productName, qty, adjustedBy, unit, note
+    const res = await api('adjustStock', {
+      productId: $('adjId').value,
+      productName: $('adjName').value,  // GAS uses data.productName
+      qty: $('adjQty').value,
+      note: $('adjNote').value,
+      adjustedBy: CU?.name || '',       // GAS uses data.adjustedBy (not adminName)
+      unit: $('adjDisp').dataset.unit || '',
+    });
     if (res.success) { cc('products'); showOk(res.message); loadProducts(); loadDashboard(); }
     else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
@@ -1773,51 +1788,67 @@ async function loadLots() {
     const list = Array.isArray(res) ? res : (res?.lots || []);
     if (!list.length) { tb.innerHTML = emptyR(8, '📋 ยังไม่มีข้อมูลการรับเข้า'); return; }
     tb.innerHTML = list.map(l => `<tr>
-      <td data-label="Lot ID"><span class="mono txs">${esc(l.lotId || l.id)}</span></td>
-      <td data-label="วันรับ">${fmtDate(l.date || l.receivedDate)}</td>
-      <td data-label="พัสดุ"><b>${esc(l.productName || l.product)}</b></td>
-      <td data-label="ซัพพลายเออร์"><span class="txs">${esc(l.supplierName || l.supplier || '—')}</span></td>
-      <td data-label="เลข PO"><span class="mono txs">${esc(l.poNumber || l.po || '—')}</span></td>
-      <td data-label="จำนวน"><b>${l.quantity || l.qty || 0}</b></td>
-      <td data-label="มูลค่า"><span class="mono txs">฿${fmtMoney((l.quantity || l.qty || 0) * (l.unitCost || l.cost || 0))}</span></td>
-      <td data-label="หมดอายุ">${l.expiryDate ? fmtDate(l.expiryDate) : '—'}</td>
+      <td data-label="Lot ID"><span class="mono txs">${esc(l.lotId)}</span></td>
+      <td data-label="วันรับ">${fmtDate(l.receiveDate)}</td>
+      <td data-label="พัสดุ"><b>${esc(l.productName)}</b></td>
+      <td data-label="ซัพพลายเออร์"><span class="txs">${esc(l.supplier || '—')}</span></td>
+      <td data-label="เลข PO"><span class="mono txs">${esc(l.poNumber || '—')}</span></td>
+      <td data-label="จำนวน"><b>${l.qty || 0}</b></td>
+      <td data-label="มูลค่า"><span class="mono txs">฿${fmtMoney((l.qty || 0) * (l.unitCost || 0))}</span></td>
+      <td data-label="หมดอายุ">${l.expiryDate && l.expiryDate !== '-' ? fmtDate(l.expiryDate) : '—'}</td>
     </tr>`).join('');
   } catch (e) { tb.innerHTML = emptyR(8, '⚠️ ' + e.message); }
 }
 async function openInbModal() {
   $('inbForm').reset();
   $('inDate').value = new Date().toISOString().split('T')[0];
-  // Populate products
+  // Populate products — store name in dataset for retrieval on submit
   const prods = gc('products') || await api('getProducts').catch(() => []);
+  const prodList = Array.isArray(prods) ? prods : (prods?.products || []);
   const sel = $('inProd');
   sel.innerHTML = '<option value="">— เลือกพัสดุ —</option>';
-  (Array.isArray(prods) ? prods : (prods?.products || [])).filter(p => p.status === 'Active' || !p.status).forEach(p => {
-    const o = document.createElement('option'); o.value = p.id; o.textContent = `${p.name} (${p.unit || ''})`;
+  prodList.filter(p => p.status === 'Active' || !p.status).forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = `${p.name} (${p.unit || ''})`;
+    o.dataset.name = p.name;  // store productName for GAS
     sel.appendChild(o);
   });
-  // Populate suppliers
+  // Populate suppliers — store name in dataset
   const sups = await api('getSuppliers').catch(() => []);
   const ssel = $('inSup');
   ssel.innerHTML = '<option value="">— ไม่ระบุ —</option>';
   (sups || []).filter(s => s.status === 'Active').forEach(s => {
-    const o = document.createElement('option'); o.value = s.id; o.textContent = s.name;
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.name;
+    o.dataset.name = s.name;  // store supplier name for GAS
     ssel.appendChild(o);
   });
   bootstrap.Modal.getOrCreateInstance($('inbModal')).show();
 }
 async function handleInbound(e) {
   e.preventDefault();
+  // Collect product/supplier names from option datasets before closing modal
+  const prodSel = $('inProd');
+  const supSel = $('inSup');
+  const productId = prodSel.value;
+  const productName = prodSel.options[prodSel.selectedIndex]?.dataset.name || prodSel.options[prodSel.selectedIndex]?.textContent?.split(' (')[0] || '';
+  const supplierName = supSel.options[supSel.selectedIndex]?.dataset.name || '';
   bootstrap.Modal.getOrCreateInstance($('inbModal')).hide();
   showLoading();
   try {
+    // GAS saveInbound expects: productId, productName, qty, receiveDate, expiryDate, unitCost, poNumber, supplier (name), receivedBy
     const res = await api('saveInbound', {
-      productId: $('inProd').value,
-      date: $('inDate').value,
-      expiryDate: $('inExp').value,
-      quantity: $('inQty').value,
-      unitCost: $('inCost').value,
-      supplierId: $('inSup').value,
-      poNumber: $('inPO').value,
+      productId,
+      productName,
+      qty: $('inQty').value,          // GAS: data.qty (not quantity)
+      receiveDate: $('inDate').value,  // GAS: data.receiveDate (not date)
+      expiryDate: $('inExp').value || '-',
+      unitCost: $('inCost').value || 0,
+      poNumber: $('inPO').value || '-',
+      supplier: supplierName,          // GAS: data.supplier = name string (not ID)
+      receivedBy: CU?.name || 'admin',
     });
     if (res.success) { cc('products'); showOk(res.message); loadLots(); }
     else showErr(res.message);
@@ -1832,18 +1863,20 @@ async function loadRequests() {
   const settings = gc('settings') || {};
   _setApvState(settings.requireApproval === 'true' || settings.requireApproval === true);
   try {
-    const res = await api('getRequests', { status: 'Pending' });
+    // GAS getRequests expects: data.statusFilter (not data.status)
+    const res = await api('getRequests', { statusFilter: 'Pending' });
     const list = Array.isArray(res) ? res : (res?.requests || []);
     if (!list.length) { tb.innerHTML = emptyR(7, '✅ ไม่มีรายการรออนุมัติ'); return; }
     tb.innerHTML = list.map(r => {
-      const items = r.items || [{ productName: r.productName, qty: r.quantity }];
-      const itemsHtml = items.map(i => `<span class="badge bb">${esc(i.productName)} ×${i.qty}</span>`).join(' ');
+      // GAS returns: reqId, userName, department, productName, qty, unit, purpose, date, row
+      // Each row = 1 product (GAS creates one row per cart item)
+      const itemBadge = `<span class="badge bb">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
       return `<tr>
         <td data-label="เลือก"><input type="checkbox" class="bcb" value="${r.row}" onchange="updateBulkBar()"></td>
-        <td data-label="รหัส"><span class="mono txs">${esc(r.requestId || r.id)}</span></td>
-        <td data-label="วันที่"><span class="txs">${fmtDate(r.date || r.requestDate)}</span></td>
-        <td data-label="ผู้เบิก/ฝ่าย"><div style="font-weight:600">${esc(r.requesterName || r.userName)}</div><div class="txs muted">${esc(r.department || '—')}</div></td>
-        <td data-label="รายการ"><div style="display:flex;flex-wrap:wrap;gap:4px">${itemsHtml}</div></td>
+        <td data-label="รหัส"><span class="mono txs">${esc(r.reqId)}</span></td>
+        <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
+        <td data-label="ผู้เบิก/ฝ่าย"><div style="font-weight:600">${esc(r.userName)}</div><div class="txs muted">${esc(r.department || '—')}</div></td>
+        <td data-label="รายการ">${itemBadge}</td>
         <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
         <td data-label="จัดการ">
           <div class="act-btns">
@@ -1983,8 +2016,10 @@ async function submitCart() {
   bootstrap.Modal.getOrCreateInstance($('cartModal')).hide();
   showLoading('กำลังส่งรายการเบิก...');
   try {
+    // GAS saveBulkRequest(cart, note, purpose, userId, userName, department)
+    // called via switch as: saveBulkRequest(data.cart, data.note, data.purpose, data.userId, data.userName, data.department)
     const res = await api('saveBulkRequest', {
-      items: CART,
+      cart: CART,                       // GAS: data.cart (not items)
       userId: CU?.id,
       userName: CU?.name,
       department: CU?.department || '',
@@ -2014,31 +2049,34 @@ async function loadHistory() {
   const tb = $('histTb');
   if (!tb) return;
   tb.innerHTML = loadR(8);
-  const params = {
-    userId: CU?.role === 'Admin' ? '' : CU?.id,
+  // GAS getUserHistory(userId, role, filters) — switch calls getUserHistory(data.userId, data.role, data.filters)
+  const filters = {
     productName: $('hProd')?.value || '',
     period: $('hPeriod')?.value || '',
     status: $('hStatus')?.value || 'all',
   };
-  if (CU?.role === 'Admin') params.userName = $('hUser')?.value || '';
+  if (CU?.role === 'Admin') filters.userName = $('hUser')?.value || '';
   try {
-    const res = await api('getUserHistory', params);
-    const list = Array.isArray(res) ? res : (res?.history || res?.requests || []);
+    const res = await api('getUserHistory', {
+      userId: CU?.role === 'Admin' ? '' : CU?.id,
+      role: CU?.role || 'User',
+      filters,
+    });
+    const list = Array.isArray(res) ? res : (res?.history || []);
     if (!list.length) { tb.innerHTML = emptyR(8, '📋 ไม่พบข้อมูล'); return; }
     tb.innerHTML = list.map(r => {
+      // GAS returns: reqId, userId, userName, department, productId, productName, qty, unit, purpose, date, approvedBy, status, adminNote
       const stBadge = r.status === 'Approved' ? '<span class="badge bs">อนุมัติ</span>'
         : r.status === 'Rejected' ? '<span class="badge bd">ไม่อนุมัติ</span>'
         : '<span class="badge bw">รออนุมัติ</span>';
-      const items = r.items || [{ productName: r.productName, qty: r.quantity }];
-      const itemsHtml = items.map(i => `<span class="badge bb txs">${esc(i.productName)} ×${i.qty}</span>`).join(' ');
-      const total = items.reduce((s, i) => s + Number(i.qty || 0), 0);
+      const itemBadge = `<span class="badge bb txs">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
       return `<tr>
-        <td data-label="รหัส"><span class="mono txs">${esc(r.requestId || r.id || '—')}</span></td>
-        <td data-label="วันที่"><span class="txs">${fmtDate(r.date || r.requestDate)}</span></td>
-        <td data-label="ผู้เบิก">${esc(r.requesterName || r.userName || '—')}</td>
+        <td data-label="รหัส"><span class="mono txs">${esc(r.reqId || '—')}</span></td>
+        <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
+        <td data-label="ผู้เบิก">${esc(r.userName || '—')}</td>
         <td data-label="ฝ่าย"><span class="txs muted">${esc(r.department || '—')}</span></td>
-        <td data-label="รายการ"><div style="display:flex;flex-wrap:wrap;gap:3px">${itemsHtml}</div></td>
-        <td data-label="รวม"><b>${total}</b></td>
+        <td data-label="รายการ">${itemBadge}</td>
+        <td data-label="รวม"><b>${r.qty || 0}</b></td>
         <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
         <td data-label="สถานะ">${stBadge}</td>
       </tr>`;
@@ -2086,7 +2124,7 @@ function renderUserTable(list) {
     <td data-label="เข้าล่าสุด"><span class="txs muted">${fmtDate(u.lastLogin)}</span></td>
     <td data-label="จัดการ">
       <div class="act-btns">
-        <button class="btn btn-ghost btn-sm" onclick="resetPin(${u.row},'${esc(u.name)}')">🔑 รีเซ็ต PIN</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetPin('${esc(u.id)}','${esc(u.name)}')">🔑 รีเซ็ต PIN</button>
         <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="delUser(${u.row},'${esc(u.name)}')">🗑️</button>
       </div>
     </td>
@@ -2099,15 +2137,16 @@ async function saveUser(row) {
     if (res.success) showOk(res.message); else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
-async function resetPin(row, name) {
+async function resetPin(userId, name) {
+  // userId = actual user ID string e.g. "U-0001" — GAS adminResetPin expects data.userId as this string
   document.activeElement?.blur();
   const r = await Swal.fire({ title: `รีเซ็ต PIN "${name}"?`, text: 'ผู้ใช้จะต้องกำหนด PIN ใหม่ในการเข้าครั้งหน้า', icon: 'warning', showCancelButton: true, confirmButtonText: 'รีเซ็ต', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' });
   if (!r.isConfirmed) return;
   showLoading();
   try {
-    const res = await api('adminResetPin', { userId: row });
+    const res = await api('adminResetPin', { userId });  // pass actual UserID (U-0001), not row number
     if (res?.success) { showOk(res.message || 'รีเซ็ต PIN สำเร็จ'); loadUsers(); }
-    else showErr(res?.message || 'เพิ่ม case adminResetPin ใน GAS switch ก่อน');
+    else showErr(res?.message || 'ไม่สำเร็จ');
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 async function delUser(row, name) {
@@ -2127,23 +2166,31 @@ async function openAddUserModal() {
   const sel = $('uDept');
   sel.innerHTML = '<option value="">— เลือกฝ่าย —</option>';
   (depts || []).filter(d => d.status === 'Active').forEach(d => {
-    const o = document.createElement('option'); o.value = d.id; o.textContent = d.name;
+    const o = document.createElement('option');
+    o.value = d.id;
+    o.textContent = d.name;
+    o.dataset.name = d.name;  // store dept name for GAS
     sel.appendChild(o);
   });
   bootstrap.Modal.getOrCreateInstance($('addUserModal')).show();
 }
 async function handleAddUser(e) {
   e.preventDefault();
+  // GAS addUser expects: prefix, firstname, lastname, department (name string), role, phone, email, note
+  const deptSel = $('uDept');
+  const deptName = deptSel.options[deptSel.selectedIndex]?.dataset.name || deptSel.options[deptSel.selectedIndex]?.textContent || '';
   bootstrap.Modal.getOrCreateInstance($('addUserModal')).hide();
   showLoading();
   try {
     const res = await api('addUser', {
       prefix: $('uPrefix').value,
-      firstName: $('uFirst').value,
-      lastName: $('uLast').value,
-      departmentId: $('uDept').value,
+      firstname: $('uFirst').value,   // GAS: data.firstname (lowercase f)
+      lastname: $('uLast').value,     // GAS: data.lastname (lowercase l)
+      department: deptName,           // GAS: data.department = name string (not ID)
       role: $('uRole').value,
       phone: $('uPhone').value,
+      email: '',
+      note: '',
     });
     if (res.success) { showOk(res.message); loadUsers(); }
     else showErr(res.message);
