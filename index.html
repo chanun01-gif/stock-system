@@ -279,16 +279,19 @@ textarea.fc{min-height:66px;resize:vertical}
 .act-btns{display:flex;gap:4px;flex-wrap:nowrap}
 .chart-box{position:relative;height:210px}
 .modal-content{border-radius:18px!important;border:none!important;box-shadow:0 24px 80px rgba(0,0,0,.22)!important;font-family:'Noto Sans Thai',sans-serif}
+/* Force Bootstrap modal and backdrop below Swal */
+.modal{z-index:1050!important}
+.modal-backdrop{z-index:1040!important}
 .modal-header{padding:12px 16px!important;border-bottom:1px solid var(--border)!important}
 .modal-title{font-size:.92rem!important;font-weight:700!important}
 .modal-body{padding:16px!important}
 .modal-footer{padding:10px 16px!important;border-top:1px solid var(--border)!important;gap:7px!important}
 .swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important}
-.swal2-container{z-index:100000!important}
-.swal2-backdrop-show{z-index:99999!important}
-/* Cart popup - always centered regardless of scroll */
+/* Swal must be above Bootstrap modal (z:1055) and its backdrop (z:1040) */
+.swal2-container{z-index:9999!important;position:fixed!important}
+.swal2-backdrop-show,.swal2-noanimation{z-index:9998!important}
+/* Cart popup size */
 .swal-cart-popup.swal2-popup{max-width:360px!important}
-.swal2-container.swal2-center{align-items:center!important;justify-content:center!important}
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
 .guest-hint{display:flex;align-items:center;gap:7px;padding:5px 11px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.25);border-radius:8px;font-size:.78rem;color:var(--gold);cursor:pointer;transition:all .18s;white-space:nowrap}
 .guest-hint:hover{background:rgba(212,160,23,.18)}
@@ -1138,31 +1141,59 @@ function hidePL(msg) {
 }
 function setPLtxt(msg) { const el = $('PLtxt'); if (el) el.textContent = msg; }
 
-// ─── SWAL HELPERS ─────────────────────────────────────────
-function _swalpre() { stripAriaHidden(); document.activeElement?.blur(); }
-function showLoading(msg) { _swalpre(); Swal.fire({ title: msg || 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); }
-function showOk(msg) { _swalpre(); Swal.fire({ icon: 'success', title: msg || 'สำเร็จ', timer: 1800, showConfirmButton: false }); }
-function showErr(msg) { _swalpre(); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: msg || 'กรุณาลองใหม่', confirmButtonText: 'ตกลง' }); }
+// ─── SWAL GLOBAL FIX ──────────────────────────────────────
+// Problem: Bootstrap 5 when modal opens does:
+//   1. body overflow:hidden + padding-right  → position:fixed elements shift
+//   2. All non-modal elements get aria-hidden → Swal unreachable
+//   3. inert attribute blocks pointer events
+// Solution: before every Swal call, neutralize Bootstrap's body interference.
+function _fixBodyForSwal() {
+  // Strip aria-hidden / inert from ALL direct body children
+  document.body.querySelectorAll(':scope > *').forEach(el => {
+    el.removeAttribute('aria-hidden');
+    el.removeAttribute('inert');
+  });
+  // Remove Bootstrap's overflow:hidden + padding-right from body
+  document.body.style.removeProperty('overflow');
+  document.body.style.removeProperty('padding-right');
+  document.documentElement.style.removeProperty('overflow');
+}
+// Called before any Swal interaction
+function _swalpre() {
+  _fixBodyForSwal();
+  document.activeElement?.blur();
+}
+function showLoading(msg) {
+  _swalpre();
+  Swal.fire({ title: msg || 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => { _fixBodyForSwal(); Swal.showLoading(); } });
+}
+function showOk(msg) {
+  _swalpre();
+  Swal.fire({ icon: 'success', title: msg || 'สำเร็จ', timer: 1800, showConfirmButton: false, didOpen: _fixBodyForSwal });
+}
+function showErr(msg) {
+  _swalpre();
+  Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: String(msg || 'กรุณาลองใหม่'), confirmButtonText: 'ตกลง', didOpen: _fixBodyForSwal });
+}
 
 // ─── ARIA-HIDDEN FIX ──────────────────────────────────────
-// Bootstrap 5 sets aria-hidden="true" on .main when a modal opens,
-// which blocks SweetAlert2 from receiving focus. We remove it immediately.
 function stripAriaHidden() {
-  document.querySelectorAll('.main,.sidebar,.topbar,[data-aria-fix]').forEach(el => {
-    if (el.getAttribute('aria-hidden') === 'true') el.removeAttribute('aria-hidden');
+  document.body.querySelectorAll(':scope > *').forEach(el => {
+    el.removeAttribute('aria-hidden');
+    el.removeAttribute('inert');
   });
 }
 (function setupAriaFix() {
-  const obs = new MutationObserver(muts => {
-    if (muts.some(m => m.type === 'attributes' && m.attributeName === 'aria-hidden')) stripAriaHidden();
-  });
-  function startObs() {
-    obs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['aria-hidden'] });
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startObs);
-  else startObs();
   document.addEventListener('shown.bs.modal', stripAriaHidden);
   document.addEventListener('hidden.bs.modal', () => setTimeout(stripAriaHidden, 50));
+  // Also watch for Bootstrap adding overflow:hidden to body (when any Swal is open, prevent it)
+  const bodyObserver = new MutationObserver(() => {
+    // Only neutralize if Swal is currently visible
+    if (document.querySelector('.swal2-container.swal2-shown, .swal2-container:not([style*="display: none"])')) {
+      _fixBodyForSwal?.();
+    }
+  });
+  bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
 })();
 
 // ─── LOGO SYSTEM ──────────────────────────────────────────
@@ -1793,14 +1824,12 @@ function closeSidebar() { $('sidebar').classList.remove('open'); $('sbOv').class
 
 // ─── LOGOUT ───────────────────────────────────────────────
 function logout() {
-  document.activeElement?.blur();
+  _swalpre();
   Swal.fire({
-    title: 'ออกจากระบบ?',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'ออก',
-    cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#d94040',
+    title: 'ออกจากระบบ?', icon: 'question',
+    showCancelButton: true, confirmButtonText: 'ออก',
+    cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040',
+    didOpen: _fixBodyForSwal,
   }).then(r => {
     if (!r.isConfirmed) return;
     CU = null; CART = []; _allUsers = [];
@@ -2143,8 +2172,8 @@ async function handleProd(e) {
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 async function delProd(row, name) {
-  document.activeElement?.blur();
-  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `"${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' });
+  _swalpre();
+  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `"${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -2310,10 +2339,10 @@ function updateBulkBar() {
 async function doBulk(status) {
   const rows = Array.from(document.querySelectorAll('.bcb:checked')).map(c => parseInt(c.value));
   if (!rows.length) return;
-  document.activeElement?.blur();
+  _swalpre();
   const r = await Swal.fire({
     title: `${status === 'Approved' ? 'อนุมัติ' : 'ปฏิเสธ'} ${rows.length} รายการ?`,
-    icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก'
+    icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', didOpen: _fixBodyForSwal
   });
   if (!r.isConfirmed) return;
   showLoading();
@@ -2505,13 +2534,15 @@ function removeCart(i) {
 }
 function clearCart() {
   if (!CART.length) return;
-  Swal.fire({ title: 'ล้างตะกร้า?', text: 'จะลบรายการทั้งหมด', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' })
+  _swalpre();
+  Swal.fire({ title: 'ล้างตะกร้า?', text: 'จะลบรายการทั้งหมด', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal })
     .then(r => {
       if (!r.isConfirmed) return;
       CART = [];
       $('cartCnt').textContent = '0';
       $('cartFab').classList.add('cart-hide');
       bootstrap.Modal.getOrCreateInstance($('cartModal')).hide();
+      filterProdGrid();
     });
 }
 async function submitCart() {
@@ -2642,20 +2673,19 @@ async function saveUser(row) {
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 async function resetPin(userId, name) {
-  // userId = actual user ID string e.g. "U-0001" — GAS adminResetPin expects data.userId as this string
-  document.activeElement?.blur();
-  const r = await Swal.fire({ title: `รีเซ็ต PIN "${name}"?`, text: 'ผู้ใช้จะต้องกำหนด PIN ใหม่ในการเข้าครั้งหน้า', icon: 'warning', showCancelButton: true, confirmButtonText: 'รีเซ็ต', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' });
+  _swalpre();
+  const r = await Swal.fire({ title: `รีเซ็ต PIN "${name}"?`, text: 'ผู้ใช้จะต้องกำหนด PIN ใหม่ในการเข้าครั้งหน้า', icon: 'warning', showCancelButton: true, confirmButtonText: 'รีเซ็ต', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
   if (!r.isConfirmed) return;
   showLoading();
   try {
-    const res = await api('adminResetPin', { userId });  // pass actual UserID (U-0001), not row number
+    const res = await api('adminResetPin', { userId });
     if (res?.success) { showOk(res.message || 'รีเซ็ต PIN สำเร็จ'); loadUsers(); }
     else showErr(res?.message || 'ไม่สำเร็จ');
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 async function delUser(row, name) {
-  document.activeElement?.blur();
-  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `ลบผู้ใช้ "${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' });
+  _swalpre();
+  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `ลบผู้ใช้ "${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -2869,8 +2899,8 @@ async function testLine() {
 
 // ─── TOOLS ────────────────────────────────────────────────
 async function doRebuild() {
-  document.activeElement?.blur();
-  const r = await Swal.fire({ title: 'Rebuild StockBalance?', text: 'คำนวณยอดสต็อกใหม่ทั้งหมดจาก Lots และ Requests', icon: 'warning', showCancelButton: true, confirmButtonText: 'ดำเนินการ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' });
+  _swalpre();
+  const r = await Swal.fire({ title: 'Rebuild StockBalance?', text: 'คำนวณยอดสต็อกใหม่ทั้งหมดจาก Lots และ Requests', icon: 'warning', showCancelButton: true, confirmButtonText: 'ดำเนินการ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
   if (!r.isConfirmed) return;
   showLoading('กำลัง Rebuild... อาจใช้เวลาสักครู่');
   try {
@@ -2985,8 +3015,8 @@ function previewImport(input) {
 }
 async function doImport() {
   if (!IMPORT_DATA.length) { showErr('ไม่มีข้อมูล'); return; }
-  document.activeElement?.blur();
-  const r = await Swal.fire({ title: `นำเข้า ${IMPORT_DATA.length} รายการ?`, icon: 'question', showCancelButton: true, confirmButtonText: 'นำเข้า', cancelButtonText: 'ยกเลิก' });
+  _swalpre();
+  const r = await Swal.fire({ title: `นำเข้า ${IMPORT_DATA.length} รายการ?`, icon: 'question', showCancelButton: true, confirmButtonText: 'นำเข้า', cancelButtonText: 'ยกเลิก', didOpen: _fixBodyForSwal });
   if (!r.isConfirmed) return;
   showLoading(`กำลังนำเข้า ${IMPORT_DATA.length} รายการ...`);
   try {
