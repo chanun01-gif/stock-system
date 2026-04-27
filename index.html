@@ -927,6 +927,30 @@ body.dark .info-box{border-color:var(--border)}
   </div>
 </div></div></div>
 
+<!-- Qty Picker Modal (replaces Swal for addToCart - always centered) -->
+<div class="modal fade" id="qtyModal" tabindex="-1" data-bs-backdrop="true"><div class="modal-dialog modal-dialog-centered" style="max-width:340px"><div class="modal-content" style="border-radius:20px!important">
+  <div class="modal-body" style="padding:24px!important;text-align:center">
+    <div style="font-size:1.6rem;margin-bottom:8px">🛒</div>
+    <div style="font-weight:700;font-size:1rem;margin-bottom:4px" id="qtyProdName">—</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:18px" id="qtyProdInfo">—</div>
+    <!-- Qty stepper -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px">
+      <button class="btn btn-ghost" onclick="qtyStep(-1)" style="width:44px;height:44px;border-radius:12px;font-size:1.4rem;font-weight:700;padding:0;display:flex;align-items:center;justify-content:center">−</button>
+      <div style="position:relative">
+        <input type="number" id="qtyInput" value="1" min="1"
+          style="width:80px;height:44px;text-align:center;font-size:1.3rem;font-weight:800;border:2px solid var(--blue);border-radius:12px;padding:0 4px;font-family:'IBM Plex Mono',monospace;color:var(--text);background:var(--surface);outline:none"
+          oninput="qtyClamp()" onkeydown="if(event.key==='Enter'){document.getElementById('qtyConfirmBtn').click()}">
+      </div>
+      <button class="btn btn-ghost" onclick="qtyStep(+1)" style="width:44px;height:44px;border-radius:12px;font-size:1.4rem;font-weight:700;padding:0;display:flex;align-items:center;justify-content:center">＋</button>
+    </div>
+    <div id="qtyErr" style="color:var(--red);font-size:.78rem;margin-bottom:10px;min-height:18px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" data-bs-dismiss="modal" style="flex:1;justify-content:center">ยกเลิก</button>
+      <button class="btn btn-gold" id="qtyConfirmBtn" onclick="qtyConfirm()" style="flex:2;justify-content:center;font-weight:700">✅ ใส่ตะกร้า</button>
+    </div>
+  </div>
+</div></div></div>
+
 <!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
   <div class="modal-header"><h5 class="modal-title">➕ เพิ่มผู้ใช้งาน</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -2339,57 +2363,83 @@ function renderProdGrid(list) {
   grid.innerHTML = active.map(p => {
     const st = Number(p.stock || 0);
     const mn = Number(p.minStock || 0);
-    const cl = st <= mn ? 's-low' : 's-ok';
+    // Deduct already-in-cart qty from displayed available stock
+    const inCart = CART.find(c => c.productId === p.id)?.qty || 0;
+    const available = Math.max(0, st - inCart);
+    const effectiveMax = Math.min(available, maxQ);
+    const cl = available === 0 ? 's-low' : available <= mn ? 's-warn' : 's-ok';
+    const stockLabel = available === 0
+      ? `<span class="s-low">หมด${inCart > 0 ? ` (ในตะกร้า ${inCart})` : ''}</span>`
+      : `คงเหลือ <b>${available}</b> ${esc(p.unit || '')}${inCart > 0 ? ` <span style="color:var(--gold);font-size:.72rem">(ตะกร้า ${inCart})</span>` : ''}`;
     const img = p.image ? `<img src="${esc(p.image)}" alt="" onerror="this.parentNode.innerHTML='📦'">` : '📦';
+    const btnDisabled = available === 0;
     return `<div class="prod-card">
       <div class="prod-img">${img}</div>
       <div class="prod-body">
         <div class="prod-name" title="${esc(p.name)}">${esc(p.name)}</div>
         <div class="prod-meta">${esc(p.category || '')} · ${esc(p.location || '')}</div>
-        <div class="prod-stock ${cl}">คงเหลือ ${st} ${esc(p.unit || '')}</div>
-        <button class="btn btn-gold btn-sm" style="width:100%;justify-content:center" onclick="addToCart('${esc(p.id)}','${esc(p.name)}',${Math.min(st, maxQ)},'${esc(p.unit || '')}')">🛒 ใส่ตะกร้า</button>
+        <div class="prod-stock ${cl}" style="margin-bottom:7px">${stockLabel}</div>
+        ${btnDisabled
+          ? `<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;opacity:.5;cursor:not-allowed" disabled>❌ สต็อกหมด</button>`
+          : `<button class="btn btn-gold btn-sm" style="width:100%;justify-content:center" onclick="addToCart('${esc(p.id)}','${esc(p.name)}',${effectiveMax},'${esc(p.unit || '')}')">🛒 ใส่ตะกร้า</button>`
+        }
       </div>
     </div>`;
   }).join('');
 }
 function filterProdGrid() { renderProdGrid(ALL_PRODS); }
-async function addToCart(id, name, maxStock, unit) {
-  // Use a simple prompt approach but ensure z-index and positioning works
-  // Find the product card position and use center positioning
-  const result = await Swal.fire({
-    title: '🛒 ใส่ตะกร้า',
-    html: `
-      <div style="margin-bottom:10px;font-weight:600;font-size:.95rem">${esc(name)}</div>
-      <div style="font-size:.8rem;color:#666;margin-bottom:12px">คงเหลือในสต็อก: <b style="color:#1fa672">${maxStock} ${esc(unit)}</b></div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px">
-        <button type="button" onclick="this.nextElementSibling.value=Math.max(1,+this.nextElementSibling.value-1)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid #dde3ef;background:#fff;font-size:1.2rem;cursor:pointer;font-weight:700">−</button>
-        <input type="number" id="swCartQty" value="1" min="1" max="${maxStock}" style="width:72px;height:36px;text-align:center;font-size:1.1rem;font-weight:700;border:1.5px solid #2c5fe8;border-radius:8px;padding:0 6px;font-family:'IBM Plex Mono',monospace" oninput="this.value=Math.min(${maxStock},Math.max(1,+this.value||1))">
-        <button type="button" onclick="this.previousElementSibling.value=Math.min(${maxStock},+this.previousElementSibling.value+1)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid #dde3ef;background:#fff;font-size:1.2rem;cursor:pointer;font-weight:700">＋</button>
-      </div>`,
-    showCancelButton: true,
-    confirmButtonText: '✅ ใส่ตะกร้า',
-    cancelButtonText: 'ยกเลิก',
-    confirmButtonColor: '#d4a017',
-    focusConfirm: false,
-    position: 'center',
-    customClass: { popup: 'swal-cart-popup' },
-    preConfirm: () => {
-      const v = parseInt($('swCartQty')?.value || 0);
-      if (!v || v < 1) { Swal.showValidationMessage('ระบุจำนวนอย่างน้อย 1'); return false; }
-      if (v > maxStock) { Swal.showValidationMessage(`สูงสุด ${maxStock} ${unit}`); return false; }
-      return v;
-    },
-  });
-  if (!result.isConfirmed || !result.value) return;
-  const q = result.value;
+// ─── QTY PICKER MODAL (Bootstrap — always centered, no Swal) ──
+let _qtyTarget = null; // { id, name, maxStock, unit }
+function addToCart(id, name, maxStock, unit) {
+  _qtyTarget = { id, name, maxStock: Number(maxStock), unit };
+  // Fill modal
+  const inp = $('qtyInput');
+  inp.value = 1;
+  inp.max = maxStock;
+  $('qtyProdName').textContent = name;
+  $('qtyProdInfo').textContent = `คงเหลือในสต็อก: ${maxStock} ${unit}`;
+  $('qtyErr').textContent = '';
+  bootstrap.Modal.getOrCreateInstance($('qtyModal')).show();
+  // Focus input after modal shown
+  $('qtyModal').addEventListener('shown.bs.modal', () => {
+    const i = $('qtyInput'); if (i) { i.select(); i.focus(); }
+  }, { once: true });
+}
+function qtyStep(delta) {
+  const inp = $('qtyInput');
+  const max = _qtyTarget?.maxStock || 999;
+  inp.value = Math.max(1, Math.min(max, (parseInt(inp.value) || 1) + delta));
+  $('qtyErr').textContent = '';
+}
+function qtyClamp() {
+  const inp = $('qtyInput');
+  const max = _qtyTarget?.maxStock || 999;
+  let v = parseInt(inp.value) || 1;
+  if (v < 1) v = 1;
+  if (v > max) { v = max; $('qtyErr').textContent = `สูงสุด ${max} ${_qtyTarget?.unit || ''}`; }
+  else $('qtyErr').textContent = '';
+  inp.value = v;
+}
+function qtyConfirm() {
+  if (!_qtyTarget) return;
+  const { id, name, maxStock, unit } = _qtyTarget;
+  const q = parseInt($('qtyInput').value) || 0;
+  if (q < 1) { $('qtyErr').textContent = 'ระบุจำนวนอย่างน้อย 1'; return; }
+  if (q > maxStock) { $('qtyErr').textContent = `สูงสุด ${maxStock} ${unit}`; $('qtyInput').value = maxStock; return; }
+  bootstrap.Modal.getInstance($('qtyModal'))?.hide();
+  // Add to cart
   const ex = CART.find(c => c.productId === id);
   if (ex) {
     if (ex.qty + q > maxStock) { showErr(`รวมกันเกินสต็อก (${maxStock} ${unit})`); return; }
     ex.qty += q;
-  } else { CART.push({ productId: id, productName: name, qty: q, maxStock, unit }); }
+  } else {
+    CART.push({ productId: id, productName: name, qty: q, maxStock, unit });
+  }
   $('cartCnt').textContent = CART.length;
   $('cartFab').classList.remove('cart-hide');
-  Swal.fire({ icon: 'success', title: 'ใส่ตะกร้าแล้ว!', text: `${name} × ${q} ${unit}`, timer: 900, showConfirmButton: false, toast: true, position: 'top-end' });
+  _qtyTarget = null;
+  // Toast top-right
+  Swal.fire({ icon: 'success', title: `ใส่ตะกร้าแล้ว!`, text: `${name} × ${q} ${unit}`, timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
 }
 function openCartModal() { renderCartTb(); bootstrap.Modal.getOrCreateInstance($('cartModal')).show(); }
 function renderCartTb() {
@@ -2430,21 +2480,28 @@ function cartQtyAdj(i, delta) {
   if (newQ > item.maxStock) { showErr(`สูงสุด ${item.maxStock} ${item.unit}`); return; }
   item.qty = newQ;
   renderCartTb();
+  filterProdGrid(); // refresh stock display
 }
 function cartQtySet(i, val) {
   const item = CART[i];
   if (!item) return;
   const v = parseInt(val);
-  if (!v || v < 1) { item.qty = 1; renderCartTb(); return; }
-  if (v > item.maxStock) { showErr(`สูงสุด ${item.maxStock} ${item.unit}`); item.qty = item.maxStock; renderCartTb(); return; }
+  if (!v || v < 1) { item.qty = 1; renderCartTb(); filterProdGrid(); return; }
+  if (v > item.maxStock) {
+    showErr(`สูงสุด ${item.maxStock} ${item.unit}`);
+    item.qty = item.maxStock;
+    renderCartTb(); filterProdGrid(); return;
+  }
   item.qty = v;
   renderCartTb();
+  filterProdGrid(); // refresh stock display
 }
 function removeCart(i) {
   CART.splice(i, 1);
   $('cartCnt').textContent = CART.length || '0';
   if (!CART.length) $('cartFab').classList.add('cart-hide');
   renderCartTb();
+  filterProdGrid(); // refresh available stock
 }
 function clearCart() {
   if (!CART.length) return;
@@ -2462,10 +2519,8 @@ async function submitCart() {
   bootstrap.Modal.getOrCreateInstance($('cartModal')).hide();
   showLoading('กำลังส่งรายการเบิก...');
   try {
-    // GAS saveBulkRequest(cart, note, purpose, userId, userName, department)
-    // called via switch as: saveBulkRequest(data.cart, data.note, data.purpose, data.userId, data.userName, data.department)
     const res = await api('saveBulkRequest', {
-      cart: CART,                       // GAS: data.cart (not items)
+      cart: CART,
       userId: CU?.id,
       userName: CU?.name,
       department: CU?.department || '',
@@ -2477,8 +2532,11 @@ async function submitCart() {
       CART = [];
       $('cartCnt').textContent = '0';
       $('cartFab').classList.add('cart-hide');
+      $('cartPurpose').value = '';
+      $('cartNote').value = '';
       showOk(res.message || 'ส่งคำขอเบิกสำเร็จ');
       loadDashboard();
+      loadProdReq(true); // reload stock to show updated qty
     } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
