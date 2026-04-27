@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ระบบจัดการพัสดุ</title>
+<!-- Inline favicon — prevents 404 on favicon.ico request -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1506,9 +1509,23 @@ async function loadUsersForPin() {
 function populatePinSel() {
   const sel = $('pinSel');
   sel.innerHTML = '<option value="">— เลือกชื่อของคุณ —</option>';
-  (_allUsers.filter(u => u.status === 'Active') || []).forEach(u => {
+  // GAS default setup uses status='Approved', UI updates use 'Active'
+  // Accept anything except 'Banned' and 'Inactive'
+  const visible = (_allUsers || []).filter(u => {
+    const s = String(u.status || '').trim();
+    return s !== 'Banned' && s !== 'Inactive';
+  });
+  if (!visible.length) {
     const o = document.createElement('option');
-    o.value = u.id; o.textContent = u.name; o.dataset.hasPin = u.hasPin || '';
+    o.value = ''; o.textContent = '— ยังไม่มีผู้ใช้ (รัน setupSystem ใน GAS ก่อน) —';
+    o.disabled = true; sel.appendChild(o);
+    return;
+  }
+  visible.forEach(u => {
+    const o = document.createElement('option');
+    o.value = u.id;
+    o.textContent = u.name + (u.department ? ` (${u.department})` : '');
+    o.dataset.hasPin = u.hasPin ? 'true' : 'false';
     sel.appendChild(o);
   });
 }
@@ -1715,8 +1732,11 @@ function renderPubStock(list) {
   if (!tb) return;
   const q = $('pubSearch')?.value?.toLowerCase() || '';
   const cat = $('pubCatF')?.value || '';
-  // Accept Active, empty, or undefined status — GAS defaults to 'Active'
-  const active = list.filter(p => !p.status || p.status === 'Active' || p.status === 'active').filter(p =>
+  // Accept Active, Approved, or empty status (GAS default setup uses 'Active')
+  const active = list.filter(p => {
+    const s = String(p.status || 'Active');
+    return s === 'Active' || s === 'Approved' || s === 'active';
+  }).filter(p =>
     (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || String(p.barcode || '').includes(q)) &&
     (!cat || p.category === cat)
   );
@@ -1744,23 +1764,44 @@ function filterPubStock() { renderPubStock(ALL_PRODS); }
 async function loadDashboard() {
   try {
     const res = await api('getDashboardStats').catch(() => null);
-    if (!res) return;
-    // GAS returns: totalProducts, lowStockCount, pendingCount, todayCount, totalValue, lowStockItems, monthlyTrend
-    if ($('s1')) $('s1').textContent = res.totalProducts ?? '—';
-    if ($('s2')) $('s2').textContent = res.lowStockCount ?? '—';
-    if ($('s3')) $('s3').textContent = res.pendingCount ?? '—';
-    if ($('s4')) $('s4').textContent = res.todayCount ?? '—';
-    if ($('s5')) $('s5').textContent = res.totalValue ? fmtMoney(res.totalValue) : '—';
-    // Update pending badge
+    // Handle null, empty {}, or {success:false, message:...}
+    if (!res || res.success === false) {
+      // Fallback: compute basic stats from already-loaded products
+      if (ALL_PRODS.length) _fillStatsFromProds();
+      return;
+    }
+    // Use ?? 0 for numbers so we show 0 instead of '—' when field is missing
+    if ($('s1')) $('s1').textContent = res.totalProducts ?? ALL_PRODS.filter(p => !p.status || p.status === 'Active' || p.status === 'Approved').length || '0';
+    if ($('s2')) $('s2').textContent = res.lowStockCount  ?? '0';
+    if ($('s3')) $('s3').textContent = res.pendingCount   ?? '0';
+    if ($('s4')) $('s4').textContent = res.todayCount     ?? '0';
+    if ($('s5')) $('s5').textContent = res.totalValue     ? fmtMoney(res.totalValue) : '0';
+    // Pending badge
     const badge = $('pendingBadge');
-    const pc = res.pendingCount || 0;
+    const pc = Number(res.pendingCount || 0);
     if (badge && pc > 0) { badge.style.display = ''; badge.textContent = pc; }
     else if (badge) badge.style.display = 'none';
     // Low stock table
-    if ($('lowTb') && res.lowStockItems) renderLowStock(res.lowStockItems);
-    // Trend chart — GAS returns monthlyTrend: [{label, count}]
-    if (res.monthlyTrend) renderTrendChart(res.monthlyTrend);
-  } catch (e) { console.warn('Dashboard stats error:', e); }
+    if ($('lowTb') && res.lowStockItems?.length) renderLowStock(res.lowStockItems);
+    else if ($('lowTb') && ALL_PRODS.length) {
+      // Build from loaded products
+      const low = ALL_PRODS.filter(p => Number(p.stock) <= Number(p.minStock) && Number(p.minStock) > 0);
+      renderLowStock(low.map(p => ({ id: p.id, name: p.name, stock: p.stock, minStock: p.minStock, unit: p.unit })));
+    }
+    // Trend chart
+    if (res.monthlyTrend?.length) renderTrendChart(res.monthlyTrend);
+  } catch (e) { console.warn('Dashboard stats error:', e); _fillStatsFromProds(); }
+}
+// Fallback: fill basic stats from ALL_PRODS cache
+function _fillStatsFromProds() {
+  if (!ALL_PRODS.length) return;
+  const active = ALL_PRODS.filter(p => !p.status || p.status === 'Active' || p.status === 'Approved');
+  const low    = active.filter(p => Number(p.stock) <= Number(p.minStock) && Number(p.minStock) > 0);
+  if ($('s1')) $('s1').textContent = active.length;
+  if ($('s2')) $('s2').textContent = low.length;
+  if ($('s3')) $('s3').textContent = '—';
+  if ($('s4')) $('s4').textContent = '—';
+  if ($('lowTb') && low.length) renderLowStock(low.map(p => ({ id: p.id, name: p.name, stock: p.stock, minStock: p.minStock, unit: p.unit })));
 }
 function renderLowStock(items) {
   const tb = $('lowTb');
@@ -2145,7 +2186,10 @@ function renderProdGrid(list) {
   if (!grid) return;
   const q = ($('reqSearch')?.value || '').toLowerCase();
   const cat = $('reqCatF')?.value || '';
-  const active = list.filter(p => (p.status === 'Active' || !p.status) && Number(p.stock || 0) > 0).filter(p =>
+  const active = list.filter(p => {
+    const s = String(p.status || 'Active');
+    return (s === 'Active' || s === 'Approved') && Number(p.stock || 0) > 0;
+  }).filter(p =>
     (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || (p.barcode || '').includes(q)) &&
     (!cat || p.category === cat)
   );
@@ -2316,8 +2360,8 @@ function renderUserTable(list) {
     </td>
     <td data-label="สถานะ">
       <select class="isel" id="st_${u.row}" onchange="saveUser(${u.row})">
-        <option value="Active" ${u.status === 'Active' ? 'selected' : ''}>ใช้งาน</option>
-        <option value="Inactive" ${u.status === 'Inactive' ? 'selected' : ''}>ระงับ</option>
+        <option value="Active" ${(u.status === 'Active' || u.status === 'Approved') ? 'selected' : ''}>ใช้งาน</option>
+        <option value="Inactive" ${(u.status === 'Inactive' || u.status === 'Banned') ? 'selected' : ''}>ระงับ</option>
       </select>
     </td>
     <td data-label="PIN"><span class="badge ${u.hasPin ? 'bs' : 'bw'}">${u.hasPin ? '✅ ตั้งแล้ว' : '⚠️ ยังไม่ตั้ง'}</span></td>
