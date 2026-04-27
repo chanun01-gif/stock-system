@@ -1771,10 +1771,10 @@ async function loadDashboard() {
       return;
     }
     // Use ?? 0 for numbers so we show 0 instead of '—' when field is missing
-    if ($('s1')) $('s1').textContent = res.totalProducts ?? ALL_PRODS.filter(p => !p.status || p.status === 'Active' || p.status === 'Approved').length || '0';
-    if ($('s2')) $('s2').textContent = res.lowStockCount  ?? '0';
-    if ($('s3')) $('s3').textContent = res.pendingCount   ?? '0';
-    if ($('s4')) $('s4').textContent = res.todayCount     ?? '0';
+    if ($('s1')) $('s1').textContent = (res.totalProducts ?? 0) || 0;
+    if ($('s2')) $('s2').textContent = res.lowStockCount  ?? 0;
+    if ($('s3')) $('s3').textContent = res.pendingCount   ?? 0;
+    if ($('s4')) $('s4').textContent = res.todayCount     ?? 0;
     if ($('s5')) $('s5').textContent = res.totalValue     ? fmtMoney(res.totalValue) : '0';
     // Pending badge
     const badge = $('pendingBadge');
