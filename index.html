@@ -238,8 +238,15 @@ textarea.fc{min-height:66px;resize:vertical}
 .bc-wrap{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
 .bc-wrap svg{max-width:100%;height:auto;display:block;margin:0 auto}
 .bc-copy-active{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important}
-@media print{body *{display:none!important}#bcPrint,#bcPrint *{display:block!important;visibility:visible!important}#bcPrint{position:fixed!important;inset:0!important;padding:20px!important;text-align:center!important}}
-#bcPrint{display:none}
+/* Print: only show #bcPrint div */
+@media print{
+  *{display:none!important}
+  #bcPrint{display:block!important;position:fixed!important;inset:0!important;padding:16px!important;background:#fff!important}
+  #bcPrint *{display:block!important;visibility:visible!important;color:#000!important;background:#fff!important}
+  #bcPrint .bc-item{display:inline-block!important;text-align:center!important;padding:10px!important;border:1px dashed #ccc!important;margin:4px!important;border-radius:4px!important;page-break-inside:avoid!important}
+  #bcPrint svg{display:block!important;margin:0 auto!important}
+}
+#bcPrint{display:none;position:fixed;inset:0;background:#fff;z-index:99998;padding:20px;overflow:auto}
 /* ═══ LOGO COLOR PICKER ═══ */
 .logo-color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .logo-swatch{width:26px;height:26px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0}
@@ -279,6 +286,9 @@ textarea.fc{min-height:66px;resize:vertical}
 .swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important}
 .swal2-container{z-index:100000!important}
 .swal2-backdrop-show{z-index:99999!important}
+/* Cart popup - always centered regardless of scroll */
+.swal-cart-popup.swal2-popup{max-width:360px!important}
+.swal2-container.swal2-center{align-items:center!important;justify-content:center!important}
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
 .guest-hint{display:flex;align-items:center;gap:7px;padding:5px 11px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.25);border-radius:8px;font-size:.78rem;color:var(--gold);cursor:pointer;transition:all .18s;white-space:nowrap}
 .guest-hint:hover{background:rgba(212,160,23,.18)}
@@ -328,11 +338,7 @@ body.dark .info-box{border-color:var(--border)}
 </div>
 
 <!-- ══ BARCODE PRINT ══ -->
-<div id="bcPrint"><div style="text-align:center;padding:20px;font-family:sans-serif">
-  <h3 id="bcPrintName" style="font-size:14px;margin-bottom:8px"></h3>
-  <div id="bcPrintSvg"></div>
-  <p id="bcPrintCode" style="font-size:11px;color:#666;margin-top:6px"></p>
-</div></div>
+<div id="bcPrint"></div>
 
 <!-- ══ PIN OVERLAY ══ -->
 <div class="pin-ov" id="pinOv">
@@ -893,15 +899,31 @@ body.dark .info-box{border-color:var(--border)}
 
 <!-- Cart Modal -->
 <div class="modal fade" id="cartModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
-  <div class="modal-header"><h5 class="modal-title">🛒 ตะกร้าพัสดุ</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-header">
+    <h5 class="modal-title">🛒 ตะกร้าพัสดุ <span id="cartCount" style="font-size:.78rem;font-weight:400;color:var(--muted);margin-left:6px"></span></h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
   <div class="modal-body">
-    <div class="tw mb-3"><table class="dt"><thead><tr><th>ชื่อพัสดุ</th><th>จำนวน</th><th>สต็อก</th><th></th></tr></thead><tbody id="cartTb"></tbody></table></div>
+    <div class="tw mb-3">
+      <table class="dt" id="cartTable">
+        <thead><tr>
+          <th>ชื่อพัสดุ</th>
+          <th style="text-align:center;width:150px">จำนวน</th>
+          <th style="text-align:center">สต็อก</th>
+          <th style="width:80px"></th>
+        </tr></thead>
+        <tbody id="cartTb"></tbody>
+      </table>
+    </div>
     <div class="fg"><label class="flabel">วัตถุประสงค์</label><input type="text" class="fc" id="cartPurpose" placeholder="ระบุวัตถุประสงค์ เช่น ซ่อมแซม, ใช้งานโครงการ..."></div>
     <div class="fg"><label class="flabel">หมายเหตุ</label><textarea class="fc" id="cartNote" rows="2"></textarea></div>
   </div>
-  <div class="modal-footer">
-    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">ปิด</button>
-    <button type="button" class="btn btn-gold" onclick="submitCart()">✅ ยืนยันการเบิก</button>
+  <div class="modal-footer" style="justify-content:space-between">
+    <button type="button" class="btn btn-danger btn-sm" onclick="clearCart()">🗑️ ล้างตะกร้า</button>
+    <div style="display:flex;gap:8px">
+      <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">ปิด</button>
+      <button type="button" class="btn btn-gold" onclick="submitCart()">✅ ยืนยันการเบิก</button>
+    </div>
   </div>
 </div></div></div>
 
@@ -1306,41 +1328,69 @@ function downloadBcPng() {
   } catch (e) { showErr('บันทึกรูปล้มเหลว: ' + e.message); }
 }
 function printBc(svgId, name, code) {
-  const svg = $(svgId);
-  if (!svg) return;
-  $('bcPrintName').textContent = name || '';
-  $('bcPrintSvg').innerHTML    = svg.outerHTML;
-  $('bcPrintCode').textContent = code || '';
-  window.print();
+  // For inline barcode in product modal
+  if (!code) { showErr('ไม่มีบาร์โค้ด'); return; }
+  const wrap = $('bcPrint');
+  if (!wrap) return;
+  wrap.innerHTML = `<div style="text-align:center;padding:20px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px;font-family:sans-serif">${esc(name || '')}</div>
+    <svg id="bcPrintSvgSingle"></svg>
+    <div style="font-size:11px;color:#555;margin-top:6px;font-family:monospace;letter-spacing:1px">${esc(code)}</div>
+  </div>`;
+  wrap.style.display = 'block';
+  setTimeout(() => {
+    const el = document.getElementById('bcPrintSvgSingle');
+    if (el && window.JsBarcode) {
+      try { JsBarcode(el, code, { format: _bcFmt(code)||'CODE128', width:2.5, height:80, displayValue:true, fontSize:13, margin:8, background:'#fff', lineColor:'#000' }); }
+      catch(e) {}
+    }
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => { wrap.style.display='none'; wrap.innerHTML=''; }, 1500);
+    }, 300);
+  }, 80);
 }
 function _doBcPrint() {
   const p = _bcCurrentProd;
   if (!p?.barcode) { showErr('ไม่มีบาร์โค้ดที่จะพิมพ์'); return; }
-  // Build print content with N copies
+  const copies = Math.max(1, _bcCopies || 1);
   const wrap = $('bcPrint');
-  if (!wrap) { window.print(); return; }
-  const copies = _bcCopies || 1;
-  // Render SVG for print
-  const tmpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  _renderBc(tmpSvg, p.barcode, { width: 2.5, height: 80, fontSize: 14 });
-  const svgHtml = tmpSvg.outerHTML;
-  // Build multi-copy grid
-  const gridItems = Array(copies).fill(0).map(() => `
-    <div style="display:inline-block;text-align:center;padding:8px;border:1px dashed #ccc;margin:4px;border-radius:4px">
-      <div style="font-size:11px;font-weight:700;margin-bottom:4px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div>
-      ${svgHtml}
-      <div style="font-size:10px;color:#666;margin-top:4px;font-family:monospace">${esc(p.barcode)}</div>
-    </div>`).join('');
-  wrap.innerHTML = `<div style="text-align:center;padding:10px">${gridItems}</div>`;
-  window.print();
-  // Restore after print
+  if (!wrap) return;
+
+  // Each copy = separate svg element with unique id
+  const items = Array(copies).fill(0).map((_, idx) =>
+    `<div class="bc-item" style="display:inline-block;text-align:center;padding:10px 12px;border:1px dashed #bbb;margin:4px;border-radius:4px;vertical-align:top;background:#fff">
+      <div style="font-size:10px;font-weight:700;margin-bottom:5px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:sans-serif">${esc(p.name)}</div>
+      <svg id="bcPS${idx}"></svg>
+      <div style="font-size:9px;color:#555;margin-top:4px;font-family:monospace;letter-spacing:1px">${esc(p.barcode)}</div>
+      ${p.id ? `<div style="font-size:9px;color:#888;font-family:monospace">${esc(p.id)}</div>` : ''}
+    </div>`
+  ).join('');
+  wrap.innerHTML = `<div style="text-align:center;padding:10px">${items}</div>`;
+  wrap.style.display = 'block';
+
+  // Render JsBarcode into each SVG after DOM updates
   setTimeout(() => {
-    wrap.innerHTML = `<div style="text-align:center;padding:20px;font-family:sans-serif">
-      <h3 id="bcPrintName" style="font-size:14px;margin-bottom:8px"></h3>
-      <div id="bcPrintSvg"></div>
-      <p id="bcPrintCode" style="font-size:11px;color:#666;margin-top:6px"></p>
-    </div>`;
-  }, 1000);
+    let ok = true;
+    for (let i = 0; i < copies; i++) {
+      const el = document.getElementById('bcPS' + i);
+      if (el && window.JsBarcode) {
+        try {
+          JsBarcode(el, p.barcode, {
+            format: _bcFmt(p.barcode) || 'CODE128',
+            width: 1.8, height: 65, displayValue: false, margin: 4,
+            background: '#ffffff', lineColor: '#000000'
+          });
+        } catch(e) { ok = false; el.innerHTML = `<text x="0" y="20" style="font-size:10px">Error</text>`; }
+      }
+    }
+    if (!ok) console.warn('บางบาร์โค้ด render ไม่ได้');
+    // Wait for render then print
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => { wrap.style.display = 'none'; wrap.innerHTML = ''; }, 1500);
+    }, 350);
+  }, 100);
 }
 
 // ─── AUTO-APPROVE (Single Source of Truth) ────────────────
@@ -2304,21 +2354,34 @@ function renderProdGrid(list) {
 }
 function filterProdGrid() { renderProdGrid(ALL_PRODS); }
 async function addToCart(id, name, maxStock, unit) {
-  document.activeElement?.blur();
-  const { value: qty, isConfirmed } = await Swal.fire({
-    title: 'ใส่ตะกร้า',
-    html: `<b>${esc(name)}</b><br><small style="color:var(--muted)">คงเหลือ ${maxStock} ${esc(unit)}</small>`,
-    input: 'number',
-    inputValue: 1,
-    inputPlaceholder: `จำนวน (สูงสุด ${maxStock})`,
-    inputAttributes: { min: 1, max: maxStock, step: 1 },
+  // Use a simple prompt approach but ensure z-index and positioning works
+  // Find the product card position and use center positioning
+  const result = await Swal.fire({
+    title: '🛒 ใส่ตะกร้า',
+    html: `
+      <div style="margin-bottom:10px;font-weight:600;font-size:.95rem">${esc(name)}</div>
+      <div style="font-size:.8rem;color:#666;margin-bottom:12px">คงเหลือในสต็อก: <b style="color:#1fa672">${maxStock} ${esc(unit)}</b></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px">
+        <button type="button" onclick="this.nextElementSibling.value=Math.max(1,+this.nextElementSibling.value-1)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid #dde3ef;background:#fff;font-size:1.2rem;cursor:pointer;font-weight:700">−</button>
+        <input type="number" id="swCartQty" value="1" min="1" max="${maxStock}" style="width:72px;height:36px;text-align:center;font-size:1.1rem;font-weight:700;border:1.5px solid #2c5fe8;border-radius:8px;padding:0 6px;font-family:'IBM Plex Mono',monospace" oninput="this.value=Math.min(${maxStock},Math.max(1,+this.value||1))">
+        <button type="button" onclick="this.previousElementSibling.value=Math.min(${maxStock},+this.previousElementSibling.value+1)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid #dde3ef;background:#fff;font-size:1.2rem;cursor:pointer;font-weight:700">＋</button>
+      </div>`,
     showCancelButton: true,
-    confirmButtonText: 'ใส่ตะกร้า',
+    confirmButtonText: '✅ ใส่ตะกร้า',
     cancelButtonText: 'ยกเลิก',
-    inputValidator: v => { if (!v || v < 1) return 'ระบุจำนวนอย่างน้อย 1'; if (v > maxStock) return `สูงสุด ${maxStock} ${unit}`; },
+    confirmButtonColor: '#d4a017',
+    focusConfirm: false,
+    position: 'center',
+    customClass: { popup: 'swal-cart-popup' },
+    preConfirm: () => {
+      const v = parseInt($('swCartQty')?.value || 0);
+      if (!v || v < 1) { Swal.showValidationMessage('ระบุจำนวนอย่างน้อย 1'); return false; }
+      if (v > maxStock) { Swal.showValidationMessage(`สูงสุด ${maxStock} ${unit}`); return false; }
+      return v;
+    },
   });
-  if (!isConfirmed) return;
-  const q = parseInt(qty);
+  if (!result.isConfirmed || !result.value) return;
+  const q = result.value;
   const ex = CART.find(c => c.productId === id);
   if (ex) {
     if (ex.qty + q > maxStock) { showErr(`รวมกันเกินสต็อก (${maxStock} ${unit})`); return; }
@@ -2326,24 +2389,73 @@ async function addToCart(id, name, maxStock, unit) {
   } else { CART.push({ productId: id, productName: name, qty: q, maxStock, unit }); }
   $('cartCnt').textContent = CART.length;
   $('cartFab').classList.remove('cart-hide');
-  Swal.fire({ icon: 'success', title: 'ใส่ตะกร้าแล้ว!', timer: 700, showConfirmButton: false, toast: true, position: 'top-end' });
+  Swal.fire({ icon: 'success', title: 'ใส่ตะกร้าแล้ว!', text: `${name} × ${q} ${unit}`, timer: 900, showConfirmButton: false, toast: true, position: 'top-end' });
 }
 function openCartModal() { renderCartTb(); bootstrap.Modal.getOrCreateInstance($('cartModal')).show(); }
 function renderCartTb() {
   const tb = $('cartTb');
-  if (!CART.length) { tb.innerHTML = emptyR(4, 'ตะกร้าว่างเปล่า'); return; }
-  tb.innerHTML = CART.map((c, i) => `<tr>
-    <td><b>${esc(c.productName)}</b></td>
-    <td>${c.qty} ${esc(c.unit)}</td>
-    <td class="muted txs">${c.maxStock} ${esc(c.unit)}</td>
-    <td><button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="removeCart(${i})">✕</button></td>
+  const cc = $('cartCount');
+  if (cc) cc.textContent = CART.length ? `(${CART.length} รายการ)` : '';
+  if (!CART.length) {
+    tb.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--muted)">ตะกร้าว่างเปล่า — กลับไปเลือกพัสดุ</td></tr>`;
+    return;
+  }
+  tb.innerHTML = CART.map((c, i) => `<tr id="cartRow${i}">
+    <td>
+      <div style="font-weight:600;font-size:.86rem">${esc(c.productName)}</div>
+      <div style="font-size:.72rem;color:var(--muted)">${esc(c.unit)} | สต็อก: ${c.maxStock}</div>
+    </td>
+    <td style="text-align:center">
+      <div style="display:flex;align-items:center;justify-content:center;gap:5px">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="cartQtyAdj(${i},-1)" style="padding:4px 8px;font-size:1rem;font-weight:700">−</button>
+        <input type="number" class="fc" value="${c.qty}" min="1" max="${c.maxStock}"
+          onchange="cartQtySet(${i},+this.value)"
+          style="width:54px;text-align:center;padding:5px 4px;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:.9rem">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="cartQtyAdj(${i},+1)" style="padding:4px 8px;font-size:1rem;font-weight:700">＋</button>
+      </div>
+    </td>
+    <td style="text-align:center">
+      <span class="mono txs ${c.maxStock > 0 ? 's-ok' : 's-low'}">${c.maxStock}</span>
+    </td>
+    <td>
+      <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="removeCart(${i})" title="ลบออกจากตะกร้า">🗑️</button>
+    </td>
   </tr>`).join('');
+}
+function cartQtyAdj(i, delta) {
+  const item = CART[i];
+  if (!item) return;
+  const newQ = item.qty + delta;
+  if (newQ < 1) { removeCart(i); return; }
+  if (newQ > item.maxStock) { showErr(`สูงสุด ${item.maxStock} ${item.unit}`); return; }
+  item.qty = newQ;
+  renderCartTb();
+}
+function cartQtySet(i, val) {
+  const item = CART[i];
+  if (!item) return;
+  const v = parseInt(val);
+  if (!v || v < 1) { item.qty = 1; renderCartTb(); return; }
+  if (v > item.maxStock) { showErr(`สูงสุด ${item.maxStock} ${item.unit}`); item.qty = item.maxStock; renderCartTb(); return; }
+  item.qty = v;
+  renderCartTb();
 }
 function removeCart(i) {
   CART.splice(i, 1);
-  $('cartCnt').textContent = CART.length;
+  $('cartCnt').textContent = CART.length || '0';
   if (!CART.length) $('cartFab').classList.add('cart-hide');
   renderCartTb();
+}
+function clearCart() {
+  if (!CART.length) return;
+  Swal.fire({ title: 'ล้างตะกร้า?', text: 'จะลบรายการทั้งหมด', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040' })
+    .then(r => {
+      if (!r.isConfirmed) return;
+      CART = [];
+      $('cartCnt').textContent = '0';
+      $('cartFab').classList.add('cart-hide');
+      bootstrap.Modal.getOrCreateInstance($('cartModal')).hide();
+    });
 }
 async function submitCart() {
   if (!CART.length) { showErr('ตะกร้าว่างเปล่า'); return; }
