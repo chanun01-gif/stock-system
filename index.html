@@ -287,11 +287,19 @@ textarea.fc{min-height:66px;resize:vertical}
 .modal-body{padding:16px!important}
 .modal-footer{padding:10px 16px!important;border-top:1px solid var(--border)!important;gap:7px!important}
 .swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important}
-/* Swal must be above Bootstrap modal (z:1055) and its backdrop (z:1040) */
-.swal2-container{z-index:9999!important;position:fixed!important}
-.swal2-backdrop-show,.swal2-noanimation{z-index:9998!important}
-/* Cart popup size */
-.swal-cart-popup.swal2-popup{max-width:360px!important}
+/* Swal MUST be above Bootstrap modal (z:1055) and backdrop (z:1040) */
+.swal2-container{
+  z-index:9999!important;
+  /* Override Bootstrap's body padding-right that shifts fixed elements */
+  left:0!important;
+  right:0!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+/* Bootstrap modal/backdrop below Swal */
+.modal{z-index:1050!important}
+.modal-backdrop{z-index:1040!important}
+body.swal2-shown>.swal2-container{padding-right:0!important}
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
 .guest-hint{display:flex;align-items:center;gap:7px;padding:5px 11px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.25);border-radius:8px;font-size:.78rem;color:var(--gold);cursor:pointer;transition:all .18s;white-space:nowrap}
 .guest-hint:hover{background:rgba(212,160,23,.18)}
@@ -1142,23 +1150,16 @@ function hidePL(msg) {
 function setPLtxt(msg) { const el = $('PLtxt'); if (el) el.textContent = msg; }
 
 // ─── SWAL GLOBAL FIX ──────────────────────────────────────
-// Problem: Bootstrap 5 when modal opens does:
-//   1. body overflow:hidden + padding-right  → position:fixed elements shift
-//   2. All non-modal elements get aria-hidden → Swal unreachable
-//   3. inert attribute blocks pointer events
-// Solution: before every Swal call, neutralize Bootstrap's body interference.
+// Problem: Bootstrap 5 sets aria-hidden / inert on body children when modal opens.
+// Fix: Strip those attributes before/during every Swal call.
+// We do NOT remove body overflow:hidden (that causes page jump = "กระตุก").
+// Position/padding is fixed via CSS instead.
 function _fixBodyForSwal() {
-  // Strip aria-hidden / inert from ALL direct body children
   document.body.querySelectorAll(':scope > *').forEach(el => {
     el.removeAttribute('aria-hidden');
     el.removeAttribute('inert');
   });
-  // Remove Bootstrap's overflow:hidden + padding-right from body
-  document.body.style.removeProperty('overflow');
-  document.body.style.removeProperty('padding-right');
-  document.documentElement.style.removeProperty('overflow');
 }
-// Called before any Swal interaction
 function _swalpre() {
   _fixBodyForSwal();
   document.activeElement?.blur();
@@ -1169,11 +1170,29 @@ function showLoading(msg) {
 }
 function showOk(msg) {
   _swalpre();
-  Swal.fire({ icon: 'success', title: msg || 'สำเร็จ', timer: 1800, showConfirmButton: false, didOpen: _fixBodyForSwal });
+  // Use timer + confirm button so it's always visible regardless of popup position
+  Swal.fire({
+    icon: 'success',
+    title: '✅ สำเร็จ',
+    text: msg || 'บันทึกเรียบร้อย',
+    timer: 2500,
+    timerProgressBar: true,
+    showConfirmButton: true,
+    confirmButtonText: 'ตกลง',
+    confirmButtonColor: '#1fa672',
+    didOpen: _fixBodyForSwal,
+  });
 }
 function showErr(msg) {
   _swalpre();
-  Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: String(msg || 'กรุณาลองใหม่'), confirmButtonText: 'ตกลง', didOpen: _fixBodyForSwal });
+  Swal.fire({
+    icon: 'error',
+    title: '❌ เกิดข้อผิดพลาด',
+    text: String(msg || 'กรุณาลองใหม่อีกครั้ง'),
+    confirmButtonText: 'ตกลง',
+    confirmButtonColor: '#d94040',
+    didOpen: _fixBodyForSwal,
+  });
 }
 
 // ─── ARIA-HIDDEN FIX ──────────────────────────────────────
@@ -1186,14 +1205,6 @@ function stripAriaHidden() {
 (function setupAriaFix() {
   document.addEventListener('shown.bs.modal', stripAriaHidden);
   document.addEventListener('hidden.bs.modal', () => setTimeout(stripAriaHidden, 50));
-  // Also watch for Bootstrap adding overflow:hidden to body (when any Swal is open, prevent it)
-  const bodyObserver = new MutationObserver(() => {
-    // Only neutralize if Swal is currently visible
-    if (document.querySelector('.swal2-container.swal2-shown, .swal2-container:not([style*="display: none"])')) {
-      _fixBodyForSwal?.();
-    }
-  });
-  bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
 })();
 
 // ─── LOGO SYSTEM ──────────────────────────────────────────
@@ -2850,25 +2861,31 @@ async function handleSettings(e) {
   e.preventDefault();
   showLoading('กำลังบันทึก...');
   const data = {
-    webName:      $('setName').value,
-    logoEmoji:    $('setLogo').value || '📦',
-    logoUrl:      $('setLogoUrl').value.trim(),  // ← persist URL logo
-    logoBgColor:  $('setC1').value,
-    logoBgColor2: $('setC2').value,
-    logoBgNone:   $('setNoB').checked ? 'true' : 'false',
-    orgName:      $('setOrg').value,
-    maxRequestQty:$('setMaxQty').value,
-    requireApproval: $('setReqApv').value,
+    webName:       $('setName').value.trim()  || 'ระบบจัดการพัสดุ',
+    logoEmoji:     $('setLogo').value         || '📦',
+    logoUrl:       ($('setLogoUrl').value     || '').trim(),
+    logoBgColor:   $('setC1').value           || '#d4a017',
+    logoBgColor2:  $('setC2').value           || '#f0c040',
+    logoBgNone:    $('setNoB').checked        ? 'true' : 'false',
+    orgName:       ($('setOrg').value         || '').trim(),
+    maxRequestQty: $('setMaxQty').value       || '100',
+    requireApproval: $('setReqApv').value     || 'true',
   };
   try {
     const res = await api('saveSettings', data);
-    if (res.success) {
+    if (res && res.success) {
       sc('settings', data);
       applySettings(data);
       _setApvState(data.requireApproval === 'true');
-      showOk(res.message);
-    } else showErr(res.message);
-  } catch (e) { Swal.close(); showErr(e.message); }
+      showOk(res.message || 'บันทึกการตั้งค่าสำเร็จ');
+    } else {
+      const errMsg = res?.message || 'GAS ไม่ตอบสนอง — ตรวจสอบ Deploy';
+      showErr(errMsg);
+    }
+  } catch (e) {
+    Swal.close();
+    showErr('เชื่อมต่อ GAS ไม่ได้: ' + e.message);
+  }
 }
 function switchStab(idx) {
   document.querySelectorAll('.stab').forEach((s, i) => s.classList.toggle('on', i === idx));
