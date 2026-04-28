@@ -286,29 +286,87 @@ textarea.fc{min-height:66px;resize:vertical}
 .modal-title{font-size:.92rem!important;font-weight:700!important}
 .modal-body{padding:16px!important}
 .modal-footer{padding:10px 16px!important;border-top:1px solid var(--border)!important;gap:7px!important}
-.swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important;max-width:min(94vw,540px)!important}
-/* Force Swal container to cover full viewport — fixes "popup hidden bottom-left" */
+/* ═══ SWAL2 OVERRIDE — fix popup hidden behind / no card visible ═══ */
 .swal2-container{
   z-index:99999!important;
   position:fixed!important;
-  top:0!important;
-  left:0!important;
-  right:0!important;
-  bottom:0!important;
-  width:100vw!important;
-  height:100vh!important;
-  padding:14px!important;
-  margin:0!important;
+  top:0!important; left:0!important; right:0!important; bottom:0!important;
+  width:100vw!important; height:100vh!important;
+  padding:14px!important; margin:0!important;
   display:flex!important;
+  align-items:center!important; justify-content:center!important;
+  overflow-y:auto!important;
+  pointer-events:auto!important;
+}
+.swal2-backdrop-show{background:rgba(0,0,0,.45)!important}
+/* The white card itself — force it visible */
+.swal2-popup{
+  font-family:'Noto Sans Thai',sans-serif!important;
+  border-radius:18px!important;
+  background:#fff!important;
+  color:#1a2540!important;
+  padding:1.6rem 1.4rem!important;
+  width:auto!important;
+  max-width:min(94vw,520px)!important;
+  box-shadow:0 24px 80px rgba(0,0,0,.3)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  position:relative!important;
+  pointer-events:auto!important;
+}
+.swal2-icon{margin:.5em auto .8em!important}
+.swal2-title{font-size:1.1rem!important;font-weight:700!important;color:#1a2540!important;margin:0 0 .6em!important;padding:0!important;text-align:center!important}
+.swal2-html-container{font-size:.92rem!important;color:#3a4760!important;margin:.4em 0 1em!important;padding:0 .4em!important;text-align:center!important;line-height:1.6!important}
+.swal2-input,.swal2-textarea{
+  width:90%!important; max-width:100%!important;
+  margin:.4em auto 1em!important;
+  padding:.6em .9em!important;
+  border:1.5px solid #dde3ef!important;
+  border-radius:10px!important;
+  font-family:inherit!important; font-size:.94rem!important;
+  background:#fff!important; color:#1a2540!important;
+}
+.swal2-input:focus,.swal2-textarea:focus{border-color:#2c5fe8!important;box-shadow:0 0 0 3px rgba(44,95,232,.1)!important;outline:none!important}
+.swal2-actions{
+  display:flex!important;
+  flex-direction:row!important;
+  justify-content:center!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin:1em 0 .2em!important;
+  width:100%!important;
+}
+.swal2-confirm,.swal2-cancel,.swal2-deny{
+  padding:.6em 1.4em!important;
+  border-radius:10px!important;
+  font-family:'Noto Sans Thai',sans-serif!important;
+  font-size:.92rem!important; font-weight:600!important;
+  border:none!important;
+  cursor:pointer!important;
+  margin:0!important;
+  display:inline-flex!important;
   align-items:center!important;
   justify-content:center!important;
-  overflow-y:auto!important;
+  min-width:90px!important;
 }
-.swal2-backdrop-show{background:rgba(0,0,0,.4)!important}
-/* Bootstrap modal/backdrop below Swal */
+.swal2-cancel{background:#e6ebf2!important;color:#3a4760!important}
+.swal2-cancel:hover{background:#d6dde8!important}
+.swal2-validation-message{margin:.4em auto 0!important;padding:.4em .8em!important;border-radius:8px!important;background:#fee2e2!important;color:#c03030!important;font-size:.82rem!important}
+.swal2-timer-progress-bar-container{height:.3em!important}
+.swal2-timer-progress-bar{background:rgba(44,95,232,.6)!important}
+/* Toast (top-right) */
+.swal2-container.swal2-top-end{align-items:flex-start!important;justify-content:flex-end!important;padding:60px 16px!important}
+.swal2-container.swal2-top-end .swal2-popup.swal2-toast{padding:.8em 1em!important;flex-direction:row!important}
+/* Bootstrap modal layer below Swal */
 .modal{z-index:1050!important}
 .modal-backdrop{z-index:1040!important}
-body.swal2-shown>.swal2-container{padding-right:14px!important}
+/* Dark mode */
+body.dark .swal2-popup{background:#162035!important;color:#e2e8f8!important}
+body.dark .swal2-title{color:#e2e8f8!important}
+body.dark .swal2-html-container{color:#b0b8d0!important}
+body.dark .swal2-input,body.dark .swal2-textarea{background:rgba(255,255,255,.06)!important;border-color:rgba(255,255,255,.1)!important;color:#e2e8f8!important}
+body.dark .swal2-cancel{background:rgba(255,255,255,.08)!important;color:#e2e8f8!important}
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
 .guest-hint{display:flex;align-items:center;gap:7px;padding:5px 11px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.25);border-radius:8px;font-size:.78rem;color:var(--gold);cursor:pointer;transition:all .18s;white-space:nowrap}
 .guest-hint:hover{background:rgba(212,160,23,.18)}
@@ -321,7 +379,6 @@ body.dark .topbar,body.dark .card{background:var(--surface)}
 body.dark .topbar{background:var(--bg-2);border-bottom-color:var(--border)}
 body.dark .fc,body.dark .fs,body.dark .sinp,body.dark .isel{background:rgba(255,255,255,.06);border-color:var(--border);color:var(--text)}
 body.dark .modal-content{background:var(--surface)!important;color:var(--text)!important}
-body.dark .swal2-popup{background:var(--surface)!important;color:var(--text)!important}
 body.dark .dt thead th{background:var(--bg-2)!important}
 body.dark .dt tbody tr:hover{background:rgba(255,255,255,.03)}
 body.dark .prod-card{background:var(--surface);border-color:var(--border)}
@@ -3184,42 +3241,73 @@ function previewImport(input) {
   $('impTWrap').style.display = 'none';
   $('impBtn').style.display = 'none';
   IMPORT_DATA = [];
+  // Read as ArrayBuffer first to detect encoding (UTF-8 vs Windows-874/TIS-620)
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const rows = parseCSVRobust(e.target.result);
-      if (rows.length < 2) { $('importStatus').innerHTML = '<div class="imp-err">❌ ไม่พบข้อมูล (ต้องมีอย่างน้อย 2 แถว)</div>'; return; }
-      const hdr = rows[0].map(h => h.trim().toLowerCase());
-      const colIdx = {};
-      for (const [field, aliases] of Object.entries(IMPORT_HEADER_MAP)) {
-        const idx = hdr.findIndex(h => aliases.includes(h));
-        if (idx >= 0) colIdx[field] = idx;
+      const buf = new Uint8Array(e.target.result);
+      // Try UTF-8 first
+      let text;
+      try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+      } catch {
+        // UTF-8 failed → try Thai encodings
+        try {
+          text = new TextDecoder('windows-874').decode(buf); // Excel default for Thai on Windows
+        } catch {
+          try {
+            text = new TextDecoder('tis-620').decode(buf);
+          } catch {
+            text = new TextDecoder('utf-8').decode(buf); // last resort
+          }
+        }
       }
-      if (colIdx.name === undefined) { $('importStatus').innerHTML = `<div class="imp-err">❌ ไม่พบคอลัมน์ "name" หรือ "ชื่อพัสดุ"</div>`; return; }
-      if (colIdx.unit === undefined) { $('importStatus').innerHTML = `<div class="imp-err">❌ ไม่พบคอลัมน์ "unit" หรือ "หน่วย"</div>`; return; }
-      const dataRows = rows.slice(1).filter(r => r.some(c => c.trim()));
-      IMPORT_DATA = dataRows.map(r => ({
-        name: r[colIdx.name]?.trim() || '',
-        barcode: colIdx.barcode !== undefined ? r[colIdx.barcode]?.trim() || '' : '',
-        category: colIdx.category !== undefined ? r[colIdx.category]?.trim() || '' : '',
-        unit: colIdx.unit !== undefined ? r[colIdx.unit]?.trim() || '' : '',
-        price: parseFloat(r[colIdx.price] || 0) || 0,
-        minStock: parseInt(r[colIdx.minStock] || 0) || 0,
-        initialStock: parseInt(r[colIdx.initialStock] || 0) || 0,
-      })).filter(r => r.name && r.unit);
-      if (!IMPORT_DATA.length) { $('importStatus').innerHTML = '<div class="imp-err">❌ ไม่พบข้อมูลที่ถูกต้อง</div>'; return; }
-      const preview = IMPORT_DATA.slice(0, 8);
-      const cols = ['name', 'barcode', 'category', 'unit', 'price', 'minStock', 'initialStock'];
-      const thLabels = { name: 'ชื่อ', barcode: 'บาร์โค้ด', category: 'หมวดหมู่', unit: 'หน่วย', price: 'ราคา', minStock: 'Min', initialStock: 'สต็อกเริ่มต้น' };
-      $('impThead').innerHTML = `<tr>${cols.map(c => `<th>${thLabels[c]}</th>`).join('')}</tr>`;
-      $('impTbody').innerHTML = preview.map(r => `<tr>${cols.map(c => `<td>${esc(r[c] || '')}</td>`)}</tr>`).join('');
-      $('importStatus').innerHTML = `<div class="imp-ok">✅ อ่านสำเร็จ: ${IMPORT_DATA.length} รายการ${IMPORT_DATA.length > 8 ? ` (แสดง 8 รายการแรก)` : ''}</div>`;
-      $('impTWrap').style.display = 'block';
-      $('impCount').textContent = IMPORT_DATA.length;
-      $('impBtn').style.display = '';
-    } catch (e) { $('importStatus').innerHTML = `<div class="imp-err">❌ อ่านไฟล์ล้มเหลว: ${e.message}</div>`; }
+      // Heuristic: if text contains many replacement characters (), retry with Thai encoding
+      const replCount = (text.match(/\uFFFD/g) || []).length;
+      if (replCount > 3) {
+        try {
+          const alt = new TextDecoder('windows-874').decode(buf);
+          if ((alt.match(/\uFFFD/g) || []).length < replCount) text = alt;
+        } catch {}
+      }
+      processCSVText(text);
+    } catch (e) {
+      $('importStatus').innerHTML = `<div class="imp-err">❌ อ่านไฟล์ล้มเหลว: ${esc(e.message)}</div>`;
+    }
   };
-  reader.readAsText(file, 'UTF-8');
+  reader.readAsArrayBuffer(file);
+}
+function processCSVText(text) {
+  const rows = parseCSVRobust(text);
+  if (rows.length < 2) { $('importStatus').innerHTML = '<div class="imp-err">❌ ไม่พบข้อมูล (ต้องมีอย่างน้อย 2 แถว)</div>'; return; }
+  const hdr = rows[0].map(h => h.trim().toLowerCase());
+  const colIdx = {};
+  for (const [field, aliases] of Object.entries(IMPORT_HEADER_MAP)) {
+    const idx = hdr.findIndex(h => aliases.includes(h));
+    if (idx >= 0) colIdx[field] = idx;
+  }
+  if (colIdx.name === undefined) { $('importStatus').innerHTML = `<div class="imp-err">❌ ไม่พบคอลัมน์ "name" หรือ "ชื่อพัสดุ"</div>`; return; }
+  if (colIdx.unit === undefined) { $('importStatus').innerHTML = `<div class="imp-err">❌ ไม่พบคอลัมน์ "unit" หรือ "หน่วย"</div>`; return; }
+  const dataRows = rows.slice(1).filter(r => r.some(c => c.trim()));
+  IMPORT_DATA = dataRows.map(r => ({
+    name: r[colIdx.name]?.trim() || '',
+    barcode: colIdx.barcode !== undefined ? r[colIdx.barcode]?.trim() || '' : '',
+    category: colIdx.category !== undefined ? r[colIdx.category]?.trim() || '' : '',
+    unit: colIdx.unit !== undefined ? r[colIdx.unit]?.trim() || '' : '',
+    price: parseFloat(r[colIdx.price] || 0) || 0,
+    minStock: parseInt(r[colIdx.minStock] || 0) || 0,
+    initialStock: parseInt(r[colIdx.initialStock] || 0) || 0,
+  })).filter(r => r.name && r.unit);
+  if (!IMPORT_DATA.length) { $('importStatus').innerHTML = '<div class="imp-err">❌ ไม่พบข้อมูลที่ถูกต้อง</div>'; return; }
+  const preview = IMPORT_DATA.slice(0, 8);
+  const cols = ['name', 'barcode', 'category', 'unit', 'price', 'minStock', 'initialStock'];
+  const thLabels = { name: 'ชื่อ', barcode: 'บาร์โค้ด', category: 'หมวดหมู่', unit: 'หน่วย', price: 'ราคา', minStock: 'Min', initialStock: 'สต็อกเริ่มต้น' };
+  $('impThead').innerHTML = `<tr>${cols.map(c => `<th>${thLabels[c]}</th>`).join('')}</tr>`;
+  $('impTbody').innerHTML = preview.map(r => `<tr>${cols.map(c => `<td>${esc(r[c] || '')}</td>`).join('')}</tr>`).join('');
+  $('importStatus').innerHTML = `<div class="imp-ok">✅ อ่านสำเร็จ: ${IMPORT_DATA.length} รายการ${IMPORT_DATA.length > 8 ? ` (แสดง 8 รายการแรก)` : ''}</div>`;
+  $('impTWrap').style.display = 'block';
+  $('impCount').textContent = IMPORT_DATA.length;
+  $('impBtn').style.display = '';
 }
 async function doImport() {
   if (!IMPORT_DATA.length) { showErr('ไม่มีข้อมูล'); return; }
