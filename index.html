@@ -2611,7 +2611,7 @@ async function loadRequests() {
         <td data-label="จัดการ">
           <div class="act-btns" style="flex-wrap:wrap">
             <button class="btn btn-success btn-sm" onclick="quickApv(${r.row},'Approved')" title="อนุมัติ">✅</button>
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${r.row},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}')" title="แก้จำนวน">✏️</button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${r.row},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','Pending')" title="แก้จำนวน">✏️</button>
             <button class="btn btn-danger btn-sm" onclick="quickApv(${r.row},'Rejected')" title="ปฏิเสธ">❌</button>
           </div>
         </td>
@@ -2628,12 +2628,20 @@ async function quickApv(row, status) {
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 // Admin: edit request qty (works for Pending and Approved — auto-adjusts stock)
-async function editReqQty(row, currentQty, prodName, unit) {
+// Edit qty — pass status to show appropriate warning
+async function editReqQty(row, currentQty, prodName, unit, status) {
   _swalpre();
+  const isApproved = status === 'Approved';
   const r = await Swal.fire({
     title: '✏️ แก้ไขจำนวน',
     html: `<div style="font-weight:600;margin-bottom:6px">${esc(prodName)}</div>
-      <div style="font-size:.78rem;color:#666;margin-bottom:14px">จำนวนเดิม: <b>${currentQty} ${esc(unit)}</b></div>`,
+      <div style="font-size:.78rem;color:#666;margin-bottom:10px">จำนวนเดิม: <b>${currentQty} ${esc(unit||'')}</b></div>
+      ${isApproved ? `<div style="font-size:.76rem;color:var(--orange);background:rgba(224,128,32,.08);padding:8px 10px;border-radius:6px;margin-bottom:12px;text-align:left;line-height:1.5">
+        ⚠️ <b>รายการนี้อนุมัติแล้ว</b><br>
+        การแก้ไขจะปรับสต็อกตามผลต่างทันที:<br>
+        • ลดจำนวน → คืนสต็อกให้พัสดุ<br>
+        • เพิ่มจำนวน → หักสต็อกเพิ่ม (ถ้ามีพอ)
+      </div>` : ''}`,
     input: 'number',
     inputValue: currentQty,
     inputAttributes: { min: 1, step: 1 },
@@ -2652,10 +2660,16 @@ async function editReqQty(row, currentQty, prodName, unit) {
     const res = await api('editRequestQty', {
       row, newQty,
       userId: CU?.id, role: CU?.role || 'User',
-      note: 'admin edit'
+      note: isApproved ? 'admin edit (approved)' : 'admin edit'
     });
-    if (res.success) { cc('products'); showOk(res.message); loadRequests(); loadDashboard(); }
-    else showErr(res.message);
+    if (res.success) {
+      cc('products');
+      showOk(res.message);
+      // Refresh whichever screen is active
+      if ($('section-history')?.classList.contains('on')) loadHistory();
+      if ($('section-approvals')?.classList.contains('on')) loadRequests();
+      loadDashboard();
+    } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 // Cancel request (own pending or admin's anything)
@@ -3025,10 +3039,10 @@ async function loadHistory() {
       let canCancel = false;
       if (r.status === 'Pending' && (isOwner || isAdmin)) canCancel = true;
       else if (r.status === 'Approved' && isAdmin) canCancel = true;
-      const canEdit = isAdmin && r.status === 'Pending';
+      const canEdit = isAdmin && (r.status === 'Pending' || r.status === 'Approved');
       const actionBtns = (canCancel || canEdit) ? `
         <div class="act-btns" style="flex-wrap:nowrap">
-          ${canEdit ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}')" title="แก้จำนวน">✏️</button>` : ''}
+          ${canEdit ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','${esc(r.status)}')" title="แก้จำนวน">✏️</button>` : ''}
           ${canCancel ? `<button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="cancelReq(${rowNum},'${esc(r.productName)}',${r.qty},'${esc(r.status)}')" title="ยกเลิก">🚫</button>` : ''}
         </div>` : '<span class="muted txs">—</span>';
       return `<tr>
