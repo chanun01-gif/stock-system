@@ -184,6 +184,24 @@ table.dt{width:100%;border-collapse:collapse}
 .fc,.fs{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Noto Sans Thai',sans-serif;font-size:.86rem;color:var(--text);background:var(--surface);outline:none;transition:border-color .18s,box-shadow .18s}
 .fc:focus,.fs:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,95,232,.1)}
 .fc::placeholder{color:var(--light)}
+
+/* ═══ SEARCHABLE COMBO ═══ */
+.combo-wrap{position:relative;width:100%}
+.combo-input{width:100%;padding:9px 32px 9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Noto Sans Thai',sans-serif;font-size:.86rem;color:var(--text);background:var(--surface);outline:none;cursor:pointer}
+.combo-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,95,232,.1)}
+.combo-input::placeholder{color:var(--light)}
+.combo-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:.7rem;transition:transform .2s}
+.combo-wrap.open .combo-arrow{transform:translateY(-50%) rotate(180deg)}
+.combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto;z-index:9999;display:none;box-shadow:var(--shadow-md)}
+.combo-wrap.open .combo-list{display:block}
+.combo-opt{padding:8px 12px;cursor:pointer;font-size:.85rem;border-bottom:1px solid var(--border);transition:background .12s}
+.combo-opt:last-child{border-bottom:none}
+.combo-opt:hover,.combo-opt.hl{background:rgba(44,95,232,.08)}
+.combo-opt.sel{background:rgba(44,95,232,.13);font-weight:600;color:var(--blue)}
+.combo-opt-empty{padding:14px;text-align:center;color:var(--muted);font-size:.8rem}
+.combo-opt mark{background:rgba(212,160,23,.25);color:inherit;padding:0 1px;border-radius:2px}
+body.dark .combo-list{background:var(--surface);border-color:var(--border)}
+body.dark .combo-opt:hover,body.dark .combo-opt.hl{background:rgba(255,255,255,.06)}
 textarea.fc{min-height:66px;resize:vertical}
 .f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -1191,6 +1209,147 @@ const fmtMoney = n => Number(n||0).toLocaleString('th-TH',{minimumFractionDigits
 const $= id => document.getElementById(id);
 const loadR = c => `<tr><td colspan="${c}"><div class="sec-ld"><div class="nc nc-sm"><div class="nc__d"></div><div class="nc__d"></div><div class="nc__d"></div><div class="nc__d"></div></div><div class="sec-ld-t">กำลังโหลด...</div></div></td></tr>`;
 const emptyR = (c, m) => `<tr><td colspan="${c}" style="text-align:center;padding:32px 20px;color:var(--muted)">${m}</td></tr>`;
+
+// ─── SEARCHABLE COMBO ───────────────────────────────────
+// Replaces native <select> with a typeable filter dropdown
+// Usage: Combo.attach('selectId', { items: [{value, text, data?}], placeholder, onChange })
+const Combo = {
+  _instances: {},
+  attach(selectId, opts = {}) {
+    const sel = $(selectId);
+    if (!sel) return null;
+    // Create wrapper
+    const wrap = document.createElement('div');
+    wrap.className = 'combo-wrap';
+    wrap.dataset.for = selectId;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'combo-input';
+    input.placeholder = opts.placeholder || '— พิมพ์เพื่อค้นหา —';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    const arrow = document.createElement('span');
+    arrow.className = 'combo-arrow';
+    arrow.textContent = '▼';
+    const list = document.createElement('div');
+    list.className = 'combo-list';
+    wrap.appendChild(input);
+    wrap.appendChild(arrow);
+    wrap.appendChild(list);
+    // Hide original select but keep value sync
+    sel.style.display = 'none';
+    sel.parentNode.insertBefore(wrap, sel);
+    sel.parentNode.insertBefore(sel, wrap.nextSibling);
+    const inst = {
+      selectId, sel, wrap, input, list,
+      items: [], filtered: [], hlIdx: -1,
+      onChange: opts.onChange || null,
+      _open: false,
+    };
+    Combo._instances[selectId] = inst;
+    Combo._wireEvents(inst);
+    if (opts.items) Combo.setItems(selectId, opts.items);
+    return inst;
+  },
+  setItems(selectId, items) {
+    const inst = Combo._instances[selectId];
+    if (!inst) return;
+    // items: [{value, text, data?}]
+    inst.items = items || [];
+    // Sync to native select
+    inst.sel.innerHTML = '';
+    items.forEach(it => {
+      const o = document.createElement('option');
+      o.value = it.value;
+      o.textContent = it.text;
+      if (it.data) Object.entries(it.data).forEach(([k,v]) => o.dataset[k] = v);
+      inst.sel.appendChild(o);
+    });
+    Combo._render(inst, '');
+  },
+  setValue(selectId, val) {
+    const inst = Combo._instances[selectId];
+    if (!inst) return;
+    inst.sel.value = val;
+    const it = inst.items.find(x => String(x.value) === String(val));
+    inst.input.value = it ? it.text : '';
+  },
+  getValue(selectId) {
+    const inst = Combo._instances[selectId];
+    return inst ? inst.sel.value : '';
+  },
+  _wireEvents(inst) {
+    inst.input.addEventListener('focus', () => Combo._open(inst));
+    inst.input.addEventListener('click', () => Combo._open(inst));
+    inst.input.addEventListener('input', () => {
+      Combo._render(inst, inst.input.value);
+      Combo._open(inst);
+    });
+    inst.input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); inst.hlIdx = Math.min(inst.filtered.length - 1, inst.hlIdx + 1); Combo._updateHl(inst); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); inst.hlIdx = Math.max(0, inst.hlIdx - 1); Combo._updateHl(inst); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (inst.filtered[inst.hlIdx]) Combo._select(inst, inst.filtered[inst.hlIdx]);
+      } else if (e.key === 'Escape') Combo._close(inst);
+    });
+    document.addEventListener('click', e => {
+      if (!inst.wrap.contains(e.target)) Combo._close(inst);
+    });
+  },
+  _open(inst) {
+    inst._open = true;
+    inst.wrap.classList.add('open');
+  },
+  _close(inst) {
+    inst._open = false;
+    inst.wrap.classList.remove('open');
+    // Restore display text if input doesn't match selected
+    const cur = inst.sel.value;
+    const it = inst.items.find(x => String(x.value) === String(cur));
+    if (it && inst.input.value !== it.text) inst.input.value = it.text;
+    else if (!it) inst.input.value = '';
+  },
+  _render(inst, query) {
+    const q = String(query || '').trim().toLowerCase();
+    const cur = inst.sel.value;
+    inst.filtered = !q ? inst.items.slice()
+      : inst.items.filter(x => x.text.toLowerCase().includes(q));
+    if (!inst.filtered.length) {
+      inst.list.innerHTML = `<div class="combo-opt-empty">— ไม่พบผลลัพธ์ —</div>`;
+      inst.hlIdx = -1;
+      return;
+    }
+    inst.list.innerHTML = inst.filtered.map((x, i) => {
+      const isSel = String(x.value) === String(cur);
+      const txt = q ? x.text.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>') : esc(x.text);
+      return `<div class="combo-opt${isSel ? ' sel' : ''}" data-idx="${i}">${txt}</div>`;
+    }).join('');
+    inst.hlIdx = inst.filtered.findIndex(x => String(x.value) === String(cur));
+    if (inst.hlIdx < 0) inst.hlIdx = 0;
+    Combo._updateHl(inst);
+    inst.list.querySelectorAll('.combo-opt').forEach((el, i) => {
+      el.addEventListener('click', () => Combo._select(inst, inst.filtered[i]));
+      el.addEventListener('mouseenter', () => { inst.hlIdx = i; Combo._updateHl(inst); });
+    });
+  },
+  _updateHl(inst) {
+    inst.list.querySelectorAll('.combo-opt').forEach((el, i) => {
+      el.classList.toggle('hl', i === inst.hlIdx);
+    });
+    const hl = inst.list.querySelector('.combo-opt.hl');
+    if (hl) hl.scrollIntoView({ block: 'nearest' });
+  },
+  _select(inst, item) {
+    if (!item) return;
+    inst.sel.value = item.value;
+    inst.input.value = item.text;
+    Combo._close(inst);
+    // Trigger native change for any listeners
+    inst.sel.dispatchEvent(new Event('change', { bubbles: true }));
+    if (inst.onChange) inst.onChange(item);
+  },
+};
 
 // ─── THEME ────────────────────────────────────────────────
 function toggleTheme() {
@@ -2239,19 +2398,20 @@ async function openProdModal(enc) {
   const form = $('prodForm');
   form.reset();
   $('pRow').value = '';
-  $('pCatName').value = '';        // clear hidden field
+  $('pCatName').value = '';
   $('bcInModal').style.display = 'none';
   $('prodImgPrev').textContent = '📦';
   $('prodModalTitle').textContent = '➕ เพิ่มพัสดุ';
-  // Load categories — accept Active or no status
   const cats = await loadCatsIfNeeded();
-  const catSel = $('pCat');
-  catSel.innerHTML = '<option value="">— เลือกหมวดหมู่ —</option>';
-  cats.filter(c => !c.status || c.status === 'Active').forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.id; o.textContent = c.name;
-    catSel.appendChild(o);
-  });
+  const catItems = [{ value: '', text: '— เลือกหมวดหมู่ —' }].concat(
+    cats.filter(c => !c.status || c.status === 'Active').map(c => ({ value: c.id, text: c.name }))
+  );
+  // Attach Combo (or update items if already attached)
+  if (!Combo._instances['pCat']) {
+    Combo.attach('pCat', { items: catItems, placeholder: '— ค้นหาหมวดหมู่ —', onChange: it => $('pCatName').value = it.value ? it.text : '' });
+  } else {
+    Combo.setItems('pCat', catItems);
+  }
   if (enc) {
     const p = decP(enc);
     $('prodModalTitle').textContent = '✏️ ' + p.name;
@@ -2265,16 +2425,18 @@ async function openProdModal(enc) {
     $('pLoc').value    = p.location    || '';
     $('pImg').value    = p.image       || '';
     $('pDesc').value   = p.description || '';
-    // Match category: try by ID first, then by name
-    if (p.categoryId && catSel.querySelector(`option[value="${p.categoryId}"]`)) {
-      catSel.value = p.categoryId;
-    } else {
-      const match = Array.from(catSel.options).find(o => o.textContent === p.category);
-      if (match) catSel.value = match.value;
+    // Set value via Combo
+    let matchVal = p.categoryId;
+    if (!matchVal || !catItems.find(c => c.value === matchVal)) {
+      const m = catItems.find(c => c.text === p.category);
+      matchVal = m ? m.value : '';
     }
-    $('pCatName').value = catSel.options[catSel.selectedIndex]?.textContent || p.category || '';
+    Combo.setValue('pCat', matchVal);
+    $('pCatName').value = catItems.find(c => c.value === matchVal)?.text || p.category || '';
     if (p.image) prevProdImg();
     if (p.barcode) autoPreviewBc();
+  } else {
+    Combo.setValue('pCat', '');
   }
   bootstrap.Modal.getOrCreateInstance($('prodModal')).show();
 }
@@ -2373,29 +2535,29 @@ async function loadLots() {
 async function openInbModal() {
   $('inbForm').reset();
   $('inDate').value = new Date().toISOString().split('T')[0];
-  // Populate products — store name in dataset for retrieval on submit
   const prods = gc('products') || await api('getProducts').catch(() => []);
   const prodList = Array.isArray(prods) ? prods : (prods?.products || []);
-  const sel = $('inProd');
-  sel.innerHTML = '<option value="">— เลือกพัสดุ —</option>';
-  prodList.filter(p => p.status === 'Active' || !p.status).forEach(p => {
-    const o = document.createElement('option');
-    o.value = p.id;
-    o.textContent = `${p.name} (${p.unit || ''})`;
-    o.dataset.name = p.name;  // store productName for GAS
-    sel.appendChild(o);
-  });
-  // Populate suppliers — store name in dataset
+  // Build product items
+  const prodItems = [{ value: '', text: '— เลือกพัสดุ —' }].concat(
+    prodList.filter(p => p.status === 'Active' || !p.status).map(p => ({
+      value: p.id,
+      text: `${p.name} (${p.unit || ''})`,
+      data: { name: p.name }
+    }))
+  );
+  if (!Combo._instances['inProd']) Combo.attach('inProd', { items: prodItems, placeholder: '— ค้นหาพัสดุ —' });
+  else Combo.setItems('inProd', prodItems);
+  Combo.setValue('inProd', '');
+  // Suppliers
   const sups = await api('getSuppliers').catch(() => []);
-  const ssel = $('inSup');
-  ssel.innerHTML = '<option value="">— ไม่ระบุ —</option>';
-  (sups || []).filter(s => s.status === 'Active').forEach(s => {
-    const o = document.createElement('option');
-    o.value = s.id;
-    o.textContent = s.name;
-    o.dataset.name = s.name;  // store supplier name for GAS
-    ssel.appendChild(o);
-  });
+  const supItems = [{ value: '', text: '— ไม่ระบุ —' }].concat(
+    (sups || []).filter(s => s.status === 'Active').map(s => ({
+      value: s.id, text: s.name, data: { name: s.name }
+    }))
+  );
+  if (!Combo._instances['inSup']) Combo.attach('inSup', { items: supItems, placeholder: '— ค้นหาซัพพลายเออร์ —' });
+  else Combo.setItems('inSup', supItems);
+  Combo.setValue('inSup', '');
   bootstrap.Modal.getOrCreateInstance($('inbModal')).show();
 }
 async function handleInbound(e) {
@@ -2962,15 +3124,14 @@ async function delUser(row, name) {
 async function openAddUserModal() {
   $('addUserForm').reset();
   const depts = await api('getDepartments').catch(() => []);
-  const sel = $('uDept');
-  sel.innerHTML = '<option value="">— เลือกฝ่าย —</option>';
-  (depts || []).filter(d => d.status === 'Active').forEach(d => {
-    const o = document.createElement('option');
-    o.value = d.id;
-    o.textContent = d.name;
-    o.dataset.name = d.name;  // store dept name for GAS
-    sel.appendChild(o);
-  });
+  const deptItems = [{ value: '', text: '— เลือกฝ่าย —' }].concat(
+    (depts || []).filter(d => d.status === 'Active').map(d => ({
+      value: d.id, text: d.name, data: { name: d.name }
+    }))
+  );
+  if (!Combo._instances['uDept']) Combo.attach('uDept', { items: deptItems, placeholder: '— ค้นหาฝ่าย —' });
+  else Combo.setItems('uDept', deptItems);
+  Combo.setValue('uDept', '');
   bootstrap.Modal.getOrCreateInstance($('addUserModal')).show();
 }
 async function handleAddUser(e) {
@@ -3008,9 +3169,25 @@ async function loadDepts() {
       <td><b>${esc(x.name)}</b></td>
       <td class="mono txs">${esc(x.code || '—')}</td>
       <td><span class="badge ${x.status === 'Active' ? 'bs' : 'bd'}">${x.status === 'Active' ? 'ใช้งาน' : 'ยกเลิก'}</span></td>
-      <td><button class="btn btn-ghost btn-icon btn-sm" onclick="openDeptModal('${encP(x)}')">✏️</button></td>
+      <td>
+        <div class="act-btns">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openDeptModal('${encP(x)}')" title="แก้ไข">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="delDept(${x.row},'${esc(x.name)}')" title="ลบ">🗑️</button>
+        </div>
+      </td>
     </tr>`).join('');
   } catch (e) { tb.innerHTML = emptyR(5, '⚠️ ' + e.message); }
+}
+async function delDept(row, name) {
+  _swalpre();
+  const r = await Swal.fire({ title: `ลบฝ่าย "${name}"?`, text: 'ระบบจะตรวจสอบว่ามีผู้ใช้ในฝ่ายนี้หรือไม่', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  if (!r.isConfirmed) return;
+  showLoading();
+  try {
+    const res = await api('deleteDepartment', { row });
+    if (res.success) { showOk(res.message); loadDepts(); }
+    else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
 }
 function openDeptModal(enc) {
   $('deptForm').reset(); $('dRow').value = '';
@@ -3041,9 +3218,25 @@ async function loadCats() {
       <td><b>${esc(x.name)}</b></td>
       <td class="txs muted">${esc(x.description || '—')}</td>
       <td><span class="badge ${x.status === 'Active' ? 'bs' : 'bd'}">${x.status === 'Active' ? 'ใช้งาน' : 'ยกเลิก'}</span></td>
-      <td><button class="btn btn-ghost btn-icon btn-sm" onclick="openCatModal('${encP(x)}')">✏️</button></td>
+      <td>
+        <div class="act-btns">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openCatModal('${encP(x)}')" title="แก้ไข">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="delCat(${x.row},'${esc(x.name)}')" title="ลบ">🗑️</button>
+        </div>
+      </td>
     </tr>`).join('');
   } catch (e) { tb.innerHTML = emptyR(5, '⚠️ ' + e.message); }
+}
+async function delCat(row, name) {
+  _swalpre();
+  const r = await Swal.fire({ title: `ลบหมวดหมู่ "${name}"?`, text: 'ระบบจะตรวจสอบว่ามีพัสดุในหมวดนี้หรือไม่', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  if (!r.isConfirmed) return;
+  showLoading();
+  try {
+    const res = await api('deleteCategory', { row });
+    if (res.success) { ALL_CATS = []; cc('products'); showOk(res.message); loadCats(); }
+    else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
 }
 function openCatModal(enc) {
   $('catForm').reset(); $('cRow').value = '';
@@ -3074,9 +3267,25 @@ async function loadSups() {
       <td>${esc(x.contact || '—')}</td>
       <td class="mono txs">${esc(x.phone || '—')}</td>
       <td><span class="badge ${x.status === 'Active' ? 'bs' : 'bd'}">${x.status === 'Active' ? 'ใช้งาน' : 'ยกเลิก'}</span></td>
-      <td><button class="btn btn-ghost btn-icon btn-sm" onclick="openSupModal('${encP(x)}')">✏️</button></td>
+      <td>
+        <div class="act-btns">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openSupModal('${encP(x)}')" title="แก้ไข">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="delSup(${x.row},'${esc(x.name)}')" title="ลบ">🗑️</button>
+        </div>
+      </td>
     </tr>`).join('');
   } catch (e) { tb.innerHTML = emptyR(6, '⚠️ ' + e.message); }
+}
+async function delSup(row, name) {
+  _swalpre();
+  const r = await Swal.fire({ title: `ลบซัพพลายเออร์ "${name}"?`, text: 'ถ้ามี Lot อ้างอิง จะเปลี่ยนเป็น "ไม่ใช้งาน" แทน', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  if (!r.isConfirmed) return;
+  showLoading();
+  try {
+    const res = await api('deleteSupplier', { row });
+    if (res.success) { showOk(res.message); loadSups(); }
+    else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
 }
 function openSupModal(enc) {
   $('supForm').reset(); $('supRow').value = '';
@@ -3318,14 +3527,52 @@ function processCSVText(text) {
 async function doImport() {
   if (!IMPORT_DATA.length) { showErr('ไม่มีข้อมูล'); return; }
   _swalpre();
-  const r = await Swal.fire({ title: `นำเข้า ${IMPORT_DATA.length} รายการ?`, icon: 'question', showCancelButton: true, confirmButtonText: 'นำเข้า', cancelButtonText: 'ยกเลิก', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({
+    title: `นำเข้า ${IMPORT_DATA.length} รายการ?`,
+    text: IMPORT_DATA.length > 20 ? 'ระบบจะแบ่งส่งเป็นชุดละ 15 รายการ' : '',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'นำเข้า', cancelButtonText: 'ยกเลิก',
+    didOpen: _fixBodyForSwal
+  });
   if (!r.isConfirmed) return;
-  showLoading(`กำลังนำเข้า ${IMPORT_DATA.length} รายการ...`);
+  // BATCH upload — JSONP URL has ~8KB limit, so we split into chunks
+  const CHUNK_SIZE = 15;
+  const total = IMPORT_DATA.length;
+  let added = 0, skipped = 0, failed = 0;
+  showLoading(`กำลังนำเข้า 0/${total}...`);
   try {
-    const res = await api('importProducts', { rows: IMPORT_DATA });
-    if (res.success) { cc('products'); showOk(res.message); clearImport(); loadProducts(); }
-    else showErr(res.message);
-  } catch (e) { Swal.close(); showErr(e.message); }
+    for (let i = 0; i < total; i += CHUNK_SIZE) {
+      const chunk = IMPORT_DATA.slice(i, i + CHUNK_SIZE);
+      // Update loading message
+      const loadingEl = document.querySelector('.swal2-title');
+      if (loadingEl) loadingEl.textContent = `กำลังนำเข้า ${Math.min(i + CHUNK_SIZE, total)}/${total}...`;
+      try {
+        const res = await api('importProducts', { rows: chunk });
+        if (res?.success) {
+          added += res.added || 0;
+          skipped += res.skipped || 0;
+        } else {
+          failed += chunk.length;
+          console.warn('Import chunk failed:', res?.message);
+        }
+      } catch (err) {
+        failed += chunk.length;
+        console.error('Import chunk error:', err);
+      }
+    }
+    cc('products');
+    if (failed > 0) {
+      showErr(`นำเข้าเสร็จ — สำเร็จ ${added} | ข้าม ${skipped} | ❌ ล้มเหลว ${failed}`);
+    } else {
+      showOk(`✅ นำเข้าสำเร็จ ${added} รายการ${skipped ? ` (ข้ามซ้ำ ${skipped})` : ''}`);
+    }
+    clearImport();
+    loadProducts();
+  } catch (e) {
+    Swal.close();
+    showErr('นำเข้าล้มเหลว: ' + e.message);
+  }
 }
 
 // ─── PROFILE ──────────────────────────────────────────────
