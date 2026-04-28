@@ -504,11 +504,17 @@ body.dark .info-box{border-color:var(--border)}
         <div class="fg" style="min-width:100px"><label class="flabel">ช่วงเวลา</label>
           <select class="fc" id="hPeriod" onchange="loadHistory()"><option value="">ทั้งหมด</option><option value="day">วันนี้</option><option value="week">7 วัน</option><option value="month">เดือนนี้</option><option value="year">ปีนี้</option></select></div>
         <div class="fg" style="min-width:100px"><label class="flabel">สถานะ</label>
-          <select class="fc" id="hStatus" onchange="loadHistory()"><option value="all">ทั้งหมด</option><option value="Approved">อนุมัติ</option><option value="Pending">รออนุมัติ</option><option value="Rejected">ไม่อนุมัติ</option></select></div>
+          <select class="fc" id="hStatus" onchange="loadHistory()">
+            <option value="all">ทั้งหมด</option>
+            <option value="Approved">อนุมัติ</option>
+            <option value="Pending">รออนุมัติ</option>
+            <option value="Rejected">ไม่อนุมัติ</option>
+            <option value="Cancelled">ยกเลิก</option>
+          </select></div>
         <button class="btn btn-ghost btn-sm" onclick="resetHistFilter()" style="align-self:flex-end" title="รีเซ็ตตัวกรอง">♻️</button>
       </div>
       <div class="card"><div class="tw mc"><table class="dt dt-r">
-        <thead><tr><th>รหัส</th><th>วันที่</th><th>ผู้เบิก</th><th>ฝ่าย</th><th>รายการพัสดุ</th><th>รวม</th><th>วัตถุประสงค์</th><th>สถานะ</th></tr></thead>
+        <thead><tr><th>รหัส</th><th>วันที่</th><th>ผู้เบิก</th><th>ฝ่าย</th><th>รายการพัสดุ</th><th>รวม</th><th>วัตถุประสงค์</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
         <tbody id="histTb"></tbody>
       </table></div></div>
     </div>
@@ -1069,7 +1075,8 @@ body.dark .info-box{border-color:var(--border)}
 // ─── CONFIG ──────────────────────────────────────────────
 const GAS_URL = window.GAS_URL ||
   'https://script.google.com/macros/s/AKfycbwV8ZLrzdw44lae6hgATHiVw4yVL2jew_rzRwHkKKTEwB2lart7RPokI-EFCpJYD-VZ/exec';
-const CACHE_TTL = 90000; // 90s
+const CACHE_TTL = 180000; // 3 minutes (reduced GAS load)
+const STOCK_OPTIMISTIC = true; // Update UI before GAS confirms
 
 // ─── STATE ────────────────────────────────────────────────
 let CU = null;          // Current user
@@ -2307,14 +2314,11 @@ async function loadRequests() {
   const settings = gc('settings') || {};
   _setApvState(settings.requireApproval === 'true' || settings.requireApproval === true);
   try {
-    // GAS getRequests expects: data.statusFilter (not data.status)
     const res = await api('getRequests', { statusFilter: 'Pending' });
     const list = Array.isArray(res) ? res : (res?.requests || []);
     if (!list.length) { tb.innerHTML = emptyR(7, '✅ ไม่มีรายการรออนุมัติ'); return; }
     tb.innerHTML = list.map(r => {
-      // GAS returns: reqId, userName, department, productName, qty, unit, purpose, date, row
-      // Each row = 1 product (GAS creates one row per cart item)
-      const itemBadge = `<span class="badge bb">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
+      const itemBadge = `<span class="badge bb">${esc(r.productName)} <b>×${r.qty}</b> ${esc(r.unit || '')}</span>`;
       return `<tr>
         <td data-label="เลือก"><input type="checkbox" class="bcb" value="${r.row}" onchange="updateBulkBar()"></td>
         <td data-label="รหัส"><span class="mono txs">${esc(r.reqId)}</span></td>
@@ -2323,9 +2327,10 @@ async function loadRequests() {
         <td data-label="รายการ">${itemBadge}</td>
         <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
         <td data-label="จัดการ">
-          <div class="act-btns">
-            <button class="btn btn-success btn-sm" onclick="quickApv(${r.row},'Approved')">✅</button>
-            <button class="btn btn-danger btn-sm" onclick="quickApv(${r.row},'Rejected')">❌</button>
+          <div class="act-btns" style="flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="quickApv(${r.row},'Approved')" title="อนุมัติ">✅</button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${r.row},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}')" title="แก้จำนวน">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="quickApv(${r.row},'Rejected')" title="ปฏิเสธ">❌</button>
           </div>
         </td>
       </tr>`;
@@ -2338,6 +2343,72 @@ async function quickApv(row, status) {
     const res = await api('updateRequestStatus', { row, newStatus: status, adminNote: '', adminName: CU?.name || '' });
     if (res.success) { cc('products'); showOk(res.message); loadRequests(); loadDashboard(); }
     else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
+}
+// Admin: edit request qty (works for Pending and Approved — auto-adjusts stock)
+async function editReqQty(row, currentQty, prodName, unit) {
+  _swalpre();
+  const r = await Swal.fire({
+    title: '✏️ แก้ไขจำนวน',
+    html: `<div style="font-weight:600;margin-bottom:6px">${esc(prodName)}</div>
+      <div style="font-size:.78rem;color:#666;margin-bottom:14px">จำนวนเดิม: <b>${currentQty} ${esc(unit)}</b></div>`,
+    input: 'number',
+    inputValue: currentQty,
+    inputAttributes: { min: 1, step: 1 },
+    showCancelButton: true,
+    confirmButtonText: '💾 บันทึก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2c5fe8',
+    didOpen: _fixBodyForSwal,
+    inputValidator: v => { if (!v || v < 1) return 'จำนวนต้องอย่างน้อย 1'; },
+  });
+  if (!r.isConfirmed) return;
+  const newQty = parseInt(r.value);
+  if (newQty === currentQty) return;
+  showLoading('กำลังแก้ไข...');
+  try {
+    const res = await api('editRequestQty', {
+      row, newQty,
+      userId: CU?.id, role: CU?.role || 'User',
+      note: 'admin edit'
+    });
+    if (res.success) { cc('products'); showOk(res.message); loadRequests(); loadDashboard(); }
+    else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
+}
+// Cancel request (own pending or admin's anything)
+async function cancelReq(row, prodName, qty, status) {
+  _swalpre();
+  const r = await Swal.fire({
+    title: '🚫 ยกเลิกการเบิก?',
+    html: `<div style="font-weight:600;margin-bottom:6px">${esc(prodName)} × ${qty}</div>
+      <div style="font-size:.76rem;color:#666;margin-bottom:8px">สถานะ: ${esc(status)}</div>
+      ${status === 'Approved' ? '<div style="font-size:.76rem;color:var(--orange);background:rgba(224,128,32,.06);padding:8px;border-radius:6px;margin-bottom:8px">⚠️ รายการนี้อนุมัติแล้ว — การยกเลิกจะคืนสต็อกให้พัสดุ</div>' : ''}`,
+    input: 'text',
+    inputPlaceholder: 'ระบุเหตุผล (ไม่บังคับ)',
+    showCancelButton: true,
+    confirmButtonText: '🚫 ยืนยันยกเลิก',
+    cancelButtonText: 'ปิด',
+    confirmButtonColor: '#d94040',
+    didOpen: _fixBodyForSwal,
+  });
+  if (!r.isConfirmed) return;
+  showLoading('กำลังยกเลิก...');
+  try {
+    const res = await api('cancelRequest', {
+      row,
+      userId: CU?.id,
+      role: CU?.role || 'User',
+      reason: r.value || '-'
+    });
+    if (res.success) {
+      cc('products');
+      showOk(res.message);
+      // Refresh whichever screen we're on
+      if ($('section-history')?.classList.contains('on')) loadHistory();
+      if ($('section-approvals')?.classList.contains('on')) loadRequests();
+      loadDashboard();
+    } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 function toggleAll(cb) { document.querySelectorAll('.bcb').forEach(c => c.checked = cb.checked); updateBulkBar(); }
@@ -2478,8 +2549,18 @@ function qtyConfirm() {
   $('cartCnt').textContent = CART.length;
   $('cartFab').classList.remove('cart-hide');
   _qtyTarget = null;
-  // Toast top-right
-  Swal.fire({ icon: 'success', title: `ใส่ตะกร้าแล้ว!`, text: `${name} × ${q} ${unit}`, timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
+  // Re-render grid to show updated remaining stock
+  filterProdGrid();
+  // Toast — clear, prominent feedback
+  _swalpre();
+  Swal.fire({
+    icon: 'success',
+    title: `+${q} ${unit}`,
+    text: name,
+    timer: 1400, timerProgressBar: true,
+    showConfirmButton: false, toast: true, position: 'top-end',
+    didOpen: _fixBodyForSwal,
+  });
 }
 function openCartModal() { renderCartTb(); bootstrap.Modal.getOrCreateInstance($('cartModal')).show(); }
 function renderCartTb() {
@@ -2558,29 +2639,60 @@ function clearCart() {
 }
 async function submitCart() {
   if (!CART.length) { showErr('ตะกร้าว่างเปล่า'); return; }
+  if (!$('cartPurpose').value.trim()) { showErr('กรุณาระบุวัตถุประสงค์'); $('cartPurpose').focus(); return; }
+  // Snapshot for rollback if API fails
+  const cartSnapshot = JSON.parse(JSON.stringify(CART));
+  const purposeVal   = $('cartPurpose').value;
+  const noteVal      = $('cartNote').value;
   bootstrap.Modal.getOrCreateInstance($('cartModal')).hide();
   showLoading('กำลังส่งรายการเบิก...');
+  // ── OPTIMISTIC UPDATE: deduct stock from local cache immediately
+  // This shows user the stock has changed BEFORE waiting for GAS
+  const settings = gc('settings') || {};
+  const isAutoApprove = settings.requireApproval === 'false';
+  if (STOCK_OPTIMISTIC && isAutoApprove) {
+    cartSnapshot.forEach(c => {
+      const p = ALL_PRODS.find(x => x.id === c.productId);
+      if (p) p.stock = Math.max(0, Number(p.stock) - Number(c.qty));
+    });
+    sc('products', ALL_PRODS); // update cache
+  }
   try {
     const res = await api('saveBulkRequest', {
-      cart: CART,
+      cart: cartSnapshot,
       userId: CU?.id,
       userName: CU?.name,
       department: CU?.department || '',
-      purpose: $('cartPurpose').value,
-      note: $('cartNote').value,
+      purpose: purposeVal,
+      note: noteVal,
     });
-    if (res.success) {
-      cc('products');
+    if (res?.success) {
+      // Confirm: clear cart and form
       CART = [];
       $('cartCnt').textContent = '0';
       $('cartFab').classList.add('cart-hide');
       $('cartPurpose').value = '';
       $('cartNote').value = '';
-      showOk(res.message || 'ส่งคำขอเบิกสำเร็จ');
-      loadDashboard();
-      loadProdReq(true); // reload stock to show updated qty
-    } else showErr(res.message);
-  } catch (e) { Swal.close(); showErr(e.message); }
+      // Re-render grid with updated stock (already optimistic, no need to refetch)
+      filterProdGrid();
+      // Show clear status message
+      const msg = isAutoApprove
+        ? `✅ เบิกสำเร็จ ${cartSnapshot.length} รายการ — สต็อกถูกตัดแล้ว`
+        : `📋 ส่งคำขอ ${cartSnapshot.length} รายการ — รอผู้ดูแลอนุมัติ`;
+      showOk(msg);
+      // Background refresh dashboard (non-blocking)
+      cc('products');
+      setTimeout(() => loadDashboard(), 300);
+    } else {
+      // Rollback optimistic update
+      if (STOCK_OPTIMISTIC && isAutoApprove) cc('products'); // force re-fetch on next load
+      showErr(res?.message || 'ไม่สามารถส่งคำขอได้');
+    }
+  } catch (e) {
+    if (STOCK_OPTIMISTIC && isAutoApprove) cc('products');
+    Swal.close();
+    showErr('เชื่อมต่อล้มเหลว: ' + e.message);
+  }
 }
 
 // ─── HISTORY ──────────────────────────────────────────────
@@ -2609,13 +2721,34 @@ async function loadHistory() {
       filters,
     });
     const list = Array.isArray(res) ? res : (res?.history || []);
-    if (!list.length) { tb.innerHTML = emptyR(8, '📋 ไม่พบข้อมูล'); return; }
+    if (!list.length) { tb.innerHTML = emptyR(9, '📋 ไม่พบข้อมูล'); return; }
     tb.innerHTML = list.map(r => {
-      // GAS returns: reqId, userId, userName, department, productId, productName, qty, unit, purpose, date, approvedBy, status, adminNote
-      const stBadge = r.status === 'Approved' ? '<span class="badge bs">อนุมัติ</span>'
-        : r.status === 'Rejected' ? '<span class="badge bd">ไม่อนุมัติ</span>'
-        : '<span class="badge bw">รออนุมัติ</span>';
+      // Status badge
+      const stMap = {
+        Approved:  '<span class="badge bs">✅ อนุมัติ</span>',
+        Rejected:  '<span class="badge bd">❌ ไม่อนุมัติ</span>',
+        Pending:   '<span class="badge bw">⏳ รออนุมัติ</span>',
+        Cancelled: '<span class="badge bn">🚫 ยกเลิก</span>',
+      };
+      const stBadge = stMap[r.status] || `<span class="badge bn">${esc(r.status)}</span>`;
       const itemBadge = `<span class="badge bb txs">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
+      // Show row identifier — backend doesn't always include row in history; use reqId fallback
+      const rowNum = r.row || 0;
+      // Cancel button conditions:
+      //   Pending: owner OR admin can cancel
+      //   Approved: only admin can cancel (will restore stock)
+      //   Rejected/Cancelled: never
+      const isAdmin = CU?.role === 'Admin';
+      const isOwner = String(r.userId || '').trim() === String(CU?.id || '').trim();
+      let canCancel = false;
+      if (r.status === 'Pending' && (isOwner || isAdmin)) canCancel = true;
+      else if (r.status === 'Approved' && isAdmin) canCancel = true;
+      const canEdit = isAdmin && r.status === 'Pending';
+      const actionBtns = (canCancel || canEdit) ? `
+        <div class="act-btns" style="flex-wrap:nowrap">
+          ${canEdit ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}')" title="แก้จำนวน">✏️</button>` : ''}
+          ${canCancel ? `<button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="cancelReq(${rowNum},'${esc(r.productName)}',${r.qty},'${esc(r.status)}')" title="ยกเลิก">🚫</button>` : ''}
+        </div>` : '<span class="muted txs">—</span>';
       return `<tr>
         <td data-label="รหัส"><span class="mono txs">${esc(r.reqId || '—')}</span></td>
         <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
@@ -2625,9 +2758,10 @@ async function loadHistory() {
         <td data-label="รวม"><b>${r.qty || 0}</b></td>
         <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
         <td data-label="สถานะ">${stBadge}</td>
+        <td data-label="จัดการ">${actionBtns}</td>
       </tr>`;
     }).join('');
-  } catch (e) { tb.innerHTML = emptyR(8, '⚠️ ' + e.message); }
+  } catch (e) { tb.innerHTML = emptyR(9, '⚠️ ' + e.message); }
 }
 
 // ─── USERS ────────────────────────────────────────────────
