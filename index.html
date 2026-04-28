@@ -337,7 +337,11 @@ textarea.fc{min-height:66px;resize:vertical}
   margin:1em 0 .2em!important;
   width:100%!important;
 }
-.swal2-confirm,.swal2-cancel,.swal2-deny{
+/* Buttons: style only when Swal makes them visible — DO NOT force display
+   (Swal sets display:none inline on buttons it doesn't want shown) */
+.swal2-actions .swal2-confirm,
+.swal2-actions .swal2-cancel,
+.swal2-actions .swal2-deny{
   padding:.6em 1.4em!important;
   border-radius:10px!important;
   font-family:'Noto Sans Thai',sans-serif!important;
@@ -345,13 +349,15 @@ textarea.fc{min-height:66px;resize:vertical}
   border:none!important;
   cursor:pointer!important;
   margin:0!important;
-  display:inline-flex!important;
   align-items:center!important;
   justify-content:center!important;
   min-width:90px!important;
 }
-.swal2-cancel{background:#e6ebf2!important;color:#3a4760!important}
-.swal2-cancel:hover{background:#d6dde8!important}
+.swal2-actions .swal2-cancel{background:#e6ebf2!important;color:#3a4760!important}
+.swal2-actions .swal2-cancel:hover{background:#d6dde8!important}
+/* Loading state: hide actions entirely so no buttons leak through */
+.swal2-popup.swal2-loading .swal2-actions{display:none!important}
+.swal2-popup.swal2-loading .swal2-html-container{display:none!important}
 .swal2-validation-message{margin:.4em auto 0!important;padding:.4em .8em!important;border-radius:8px!important;background:#fee2e2!important;color:#c03030!important;font-size:.82rem!important}
 .swal2-timer-progress-bar-container{height:.3em!important}
 .swal2-timer-progress-bar{background:rgba(44,95,232,.6)!important}
