@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ระบบจัดการพัสดุ</title>
-<!-- Inline favicon — prevents 404 on favicon.ico request -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<!-- Default favicon — replaced dynamically by setFavicon() based on settings -->
+<link rel="icon" id="appFavicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<link rel="apple-touch-icon" id="appFaviconApple" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -286,20 +286,29 @@ textarea.fc{min-height:66px;resize:vertical}
 .modal-title{font-size:.92rem!important;font-weight:700!important}
 .modal-body{padding:16px!important}
 .modal-footer{padding:10px 16px!important;border-top:1px solid var(--border)!important;gap:7px!important}
-.swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important}
-/* Swal MUST be above Bootstrap modal (z:1055) and backdrop (z:1040) */
+.swal2-popup{font-family:'Noto Sans Thai',sans-serif!important;border-radius:16px!important;max-width:min(94vw,540px)!important}
+/* Force Swal container to cover full viewport — fixes "popup hidden bottom-left" */
 .swal2-container{
-  z-index:9999!important;
-  /* Override Bootstrap's body padding-right that shifts fixed elements */
+  z-index:99999!important;
+  position:fixed!important;
+  top:0!important;
   left:0!important;
   right:0!important;
-  width:100%!important;
-  box-sizing:border-box!important;
+  bottom:0!important;
+  width:100vw!important;
+  height:100vh!important;
+  padding:14px!important;
+  margin:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow-y:auto!important;
 }
+.swal2-backdrop-show{background:rgba(0,0,0,.4)!important}
 /* Bootstrap modal/backdrop below Swal */
 .modal{z-index:1050!important}
 .modal-backdrop{z-index:1040!important}
-body.swal2-shown>.swal2-container{padding-right:0!important}
+body.swal2-shown>.swal2-container{padding-right:14px!important}
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
 .guest-hint{display:flex;align-items:center;gap:7px;padding:5px 11px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.25);border-radius:8px;font-size:.78rem;color:var(--gold);cursor:pointer;transition:all .18s;white-space:nowrap}
 .guest-hint:hover{background:rgba(212,160,23,.18)}
@@ -1215,7 +1224,25 @@ function stripAriaHidden() {
 })();
 
 // ─── LOGO SYSTEM ──────────────────────────────────────────
+function setFavicon(emoji, url) {
+  // Update browser tab icon based on settings
+  let href;
+  if (url && url.trim()) {
+    // Use URL directly
+    href = url.trim();
+  } else {
+    // Build SVG with emoji
+    const e = (emoji || '📦').replace(/&/g,'&amp;').replace(/'/g,'').replace(/"/g,'');
+    href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${encodeURIComponent(e).replace(/'/g,'%27')}</text></svg>`;
+  }
+  const fav = document.getElementById('appFavicon');
+  const favA = document.getElementById('appFaviconApple');
+  if (fav) fav.href = href;
+  if (favA) favA.href = href;
+}
 function applyLogo(emoji, url, bgCss) {
+  // Update browser tab icon
+  setFavicon(emoji, url);
   // Default to gold gradient if no bg specified
   const val = (bgCss && bgCss !== 'none') ? bgCss : (url ? 'none' : 'linear-gradient(135deg,#d4a017,#f0c040)');
   const bg  = bgCss || (url ? 'none' : 'linear-gradient(135deg,#d4a017,#f0c040)');
@@ -1226,7 +1253,6 @@ function applyLogo(emoji, url, bgCss) {
     el.style.background = bg;
     el.innerHTML = '';
     if (url && url.trim()) {
-      // Create img with explicit inline styles — CSS class alone is not enough after innerHTML clear
       const img = document.createElement('img');
       img.src = url.trim();
       img.alt = 'logo';
@@ -1350,18 +1376,40 @@ function openBcModal(prodEnc) {
   $('bcModalUnit').textContent  = p.unit ? `หน่วย: ${p.unit}` : '';
   $('bcModalPrice').textContent = p.price   ? `฿${fmtMoney(p.price)}` : '';
   $('bcModalCode').textContent  = p.barcode || '— ไม่มีบาร์โค้ด —';
-  // Render SVG
+  // Show modal first
+  const modal = bootstrap.Modal.getOrCreateInstance($('bcModal'));
+  modal.show();
+  // Render barcode AFTER modal is fully visible (SVG needs to be in DOM with dimensions)
+  $('bcModal').addEventListener('shown.bs.modal', () => {
+    _renderBcInModal(p);
+  }, { once: true });
+}
+function _renderBcInModal(p) {
   const svg = $('bcModalSvg');
-  if (svg) {
-    svg.innerHTML = '';
-    if (p.barcode) {
-      const ok = _renderBc(svg, p.barcode, { width: 2.5, height: 80, fontSize: 14 });
-      if (!ok) svg.innerHTML = `<div style="padding:20px;color:var(--muted)">รูปแบบบาร์โค้ดไม่รองรับ: ${esc(p.barcode)}</div>`;
-    } else {
-      svg.innerHTML = `<div style="padding:24px;color:var(--muted);font-size:.84rem">ไม่มีบาร์โค้ด — กำหนดในหน้าแก้ไขพัสดุ</div>`;
-    }
+  if (!svg) return;
+  svg.innerHTML = '';
+  if (!p.barcode) {
+    svg.outerHTML = `<svg id="bcModalSvg" style="max-width:100%;height:auto;display:block;margin:0 auto"></svg>`;
+    const wrap = $('bcMainWrap');
+    if (wrap) wrap.innerHTML = `<canvas id="bcModalCanvas" style="display:none"></canvas>
+      <svg id="bcModalSvg" style="max-width:100%;height:auto;display:block;margin:0 auto"></svg>
+      <div style="padding:18px 12px;color:var(--muted);font-size:.84rem;text-align:center">⚠️ ไม่มีบาร์โค้ด<br><small>กำหนดในหน้าแก้ไขพัสดุ</small></div>`;
+    return;
   }
-  bootstrap.Modal.getOrCreateInstance($('bcModal')).show();
+  if (!window.JsBarcode) {
+    svg.outerHTML = `<div style="padding:20px;color:var(--red)">JsBarcode library ยังไม่โหลด</div>`;
+    return;
+  }
+  try {
+    JsBarcode(svg, String(p.barcode), {
+      format: _bcFmt(p.barcode) || 'CODE128',
+      width: 2.5, height: 80, displayValue: true, fontSize: 14, margin: 10,
+      background: '#ffffff', lineColor: '#000000'
+    });
+  } catch (err) {
+    console.error('Barcode render error:', err, 'code=', p.barcode);
+    svg.outerHTML = `<div style="padding:20px;color:var(--orange);font-size:.84rem">⚠️ รูปแบบบาร์โค้ดไม่รองรับ: <code>${esc(p.barcode)}</code><br><small>(${err.message})</small></div>`;
+  }
 }
 function setBcCopies(n) {
   _bcCopies = n;
@@ -1400,70 +1448,79 @@ function downloadBcPng() {
     a.click();
   } catch (e) { showErr('บันทึกรูปล้มเหลว: ' + e.message); }
 }
+// Print barcode in NEW window — most reliable across browsers
 function printBc(svgId, name, code) {
-  // For inline barcode in product modal
   if (!code) { showErr('ไม่มีบาร์โค้ด'); return; }
-  const wrap = $('bcPrint');
-  if (!wrap) return;
-  wrap.innerHTML = `<div style="text-align:center;padding:20px">
-    <div style="font-size:13px;font-weight:700;margin-bottom:8px;font-family:sans-serif">${esc(name || '')}</div>
-    <svg id="bcPrintSvgSingle"></svg>
-    <div style="font-size:11px;color:#555;margin-top:6px;font-family:monospace;letter-spacing:1px">${esc(code)}</div>
-  </div>`;
-  wrap.style.display = 'block';
-  setTimeout(() => {
-    const el = document.getElementById('bcPrintSvgSingle');
-    if (el && window.JsBarcode) {
-      try { JsBarcode(el, code, { format: _bcFmt(code)||'CODE128', width:2.5, height:80, displayValue:true, fontSize:13, margin:8, background:'#fff', lineColor:'#000' }); }
-      catch(e) {}
-    }
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => { wrap.style.display='none'; wrap.innerHTML=''; }, 1500);
-    }, 300);
-  }, 80);
+  _printBarcodeWindow(name || '', code, 1);
 }
 function _doBcPrint() {
   const p = _bcCurrentProd;
   if (!p?.barcode) { showErr('ไม่มีบาร์โค้ดที่จะพิมพ์'); return; }
-  const copies = Math.max(1, _bcCopies || 1);
-  const wrap = $('bcPrint');
-  if (!wrap) return;
-
-  // Each copy = separate svg element with unique id
-  const items = Array(copies).fill(0).map((_, idx) =>
-    `<div class="bc-item" style="display:inline-block;text-align:center;padding:10px 12px;border:1px dashed #bbb;margin:4px;border-radius:4px;vertical-align:top;background:#fff">
-      <div style="font-size:10px;font-weight:700;margin-bottom:5px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:sans-serif">${esc(p.name)}</div>
-      <svg id="bcPS${idx}"></svg>
-      <div style="font-size:9px;color:#555;margin-top:4px;font-family:monospace;letter-spacing:1px">${esc(p.barcode)}</div>
-      ${p.id ? `<div style="font-size:9px;color:#888;font-family:monospace">${esc(p.id)}</div>` : ''}
-    </div>`
-  ).join('');
-  wrap.innerHTML = `<div style="text-align:center;padding:10px">${items}</div>`;
-  wrap.style.display = 'block';
-
-  // Render JsBarcode into each SVG after DOM updates
-  setTimeout(() => {
-    let ok = true;
-    for (let i = 0; i < copies; i++) {
-      const el = document.getElementById('bcPS' + i);
-      if (el && window.JsBarcode) {
-        try {
-          JsBarcode(el, p.barcode, {
-            format: _bcFmt(p.barcode) || 'CODE128',
-            width: 1.8, height: 65, displayValue: false, margin: 4,
-            background: '#ffffff', lineColor: '#000000'
-          });
-        } catch(e) { ok = false; el.innerHTML = `<text x="0" y="20" style="font-size:10px">Error</text>`; }
+  _printBarcodeWindow(p.name || '', p.barcode, _bcCopies || 1, p.id || '');
+}
+function _printBarcodeWindow(name, code, copies, prodId) {
+  copies = Math.max(1, Math.min(50, copies));
+  // Open new window for printing
+  const w = window.open('', '_blank', 'width=600,height=700');
+  if (!w) { showErr('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ — กรุณาอนุญาต popup'); return; }
+  w.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>Print Barcode - ${esc(name)}</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+    <style>
+      body{margin:0;padding:14px;font-family:'Noto Sans Thai',sans-serif,'Tahoma'}
+      .wrap{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+      .item{
+        display:inline-block;text-align:center;
+        padding:8px 10px;border:1px dashed #999;border-radius:4px;
+        page-break-inside:avoid;background:#fff;break-inside:avoid;
       }
-    }
-    if (!ok) console.warn('บางบาร์โค้ด render ไม่ได้');
-    // Wait for render then print
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => { wrap.style.display = 'none'; wrap.innerHTML = ''; }, 1500);
-    }, 350);
-  }, 100);
+      .item .nm{font-size:11px;font-weight:700;margin-bottom:4px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .item svg{display:block;margin:0 auto}
+      .item .cd{font-size:9px;color:#444;margin-top:3px;font-family:monospace;letter-spacing:1px}
+      .item .pid{font-size:9px;color:#888;font-family:monospace}
+      @media print{
+        @page{margin:8mm}
+        .item{border:1px dashed #aaa}
+        .nopr{display:none!important}
+      }
+      .nopr{position:fixed;top:8px;right:8px;background:#2c5fe8;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px}
+    </style>
+    </head><body>
+    <button class="nopr" onclick="window.print()">🖨️ พิมพ์</button>
+    <div class="wrap">
+    ${Array(copies).fill(0).map((_, i) => `
+      <div class="item">
+        <div class="nm">${esc(name)}</div>
+        <svg id="bc${i}"></svg>
+        <div class="cd">${esc(code)}</div>
+        ${prodId ? `<div class="pid">${esc(prodId)}</div>` : ''}
+      </div>`).join('')}
+    </div>
+    <script>
+      window.addEventListener('load', function() {
+        var fmt = ${JSON.stringify(_bcFmt(code) || 'CODE128')};
+        var ok = 0;
+        for (var i = 0; i < ${copies}; i++) {
+          var el = document.getElementById('bc' + i);
+          if (el && window.JsBarcode) {
+            try {
+              JsBarcode(el, ${JSON.stringify(String(code))}, {
+                format: fmt, width: 1.8, height: 60, displayValue: false,
+                margin: 4, background: '#ffffff', lineColor: '#000000'
+              });
+              ok++;
+            } catch(e) {
+              el.outerHTML = '<div style="padding:10px;color:red;font-size:11px">Error: ' + e.message + '</div>';
+            }
+          }
+        }
+        // Auto-trigger print after a moment
+        setTimeout(function() { window.print(); }, 500);
+      });
+    <\/script>
+    </body></html>`);
+  w.document.close();
 }
 
 // ─── AUTO-APPROVE (Single Source of Truth) ────────────────
