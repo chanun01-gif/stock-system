@@ -774,14 +774,63 @@ body.dark .info-box{border-color:var(--border)}
       </div>
       <!-- Tab 4 -->
       <div class="stab-panel card" id="stab-4" style="display:none">
-        <div class="card-hd"><h2 class="card-ttl">📢 LINE Notify</h2></div>
+        <div class="card-hd"><h2 class="card-ttl">📢 การแจ้งเตือน</h2></div>
         <div class="card-body">
-          <div class="info-box info-blue">
-            <b>วิธีขอ Token:</b> ไปที่ <a href="https://notify-bot.line.me/th/" target="_blank" style="color:var(--blue)">notify-bot.line.me</a> → Login → Generate token → เลือกห้อง → Copy
+          <div class="info-box info-warn" style="margin-bottom:14px">
+            <b>⚠️ LINE Notify ปิดบริการแล้วตั้งแต่ 31 มี.ค. 2025</b><br>
+            <span style="font-size:.78rem">Token เก่าใช้ไม่ได้แล้ว — กรุณาเลือกใช้ทางเลือกด้านล่าง</span>
           </div>
-          <div class="fg"><label class="flabel">LINE Notify Token</label><input type="password" class="fc" id="lineToken" placeholder="วาง Token ที่นี่..."></div>
-          <div style="display:flex;gap:8px"><button class="btn btn-navy" onclick="saveLineToken()">💾 บันทึก Token</button><button class="btn btn-ghost" onclick="testLine()">🔔 ทดสอบส่ง</button></div>
-          <div id="lineStatus" style="margin-top:10px;font-size:.8rem;color:var(--muted)"></div>
+
+          <!-- Option 1: LINE Messaging API -->
+          <div style="padding:14px;background:rgba(31,166,114,.05);border:1.5px solid rgba(31,166,114,.25);border-radius:11px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:1.2rem">💬</span>
+              <b style="color:var(--green)">LINE Messaging API</b>
+              <span class="badge bs" style="margin-left:auto">แนะนำ</span>
+            </div>
+            <div style="font-size:.78rem;color:var(--muted);line-height:1.7;margin-bottom:10px">
+              📌 <b>วิธีตั้งค่า:</b><br>
+              1. เปิด <a href="https://developers.line.biz/console/" target="_blank" style="color:var(--blue)">developers.line.biz/console</a> → Login<br>
+              2. Create Provider → Create Messaging API Channel<br>
+              3. คัดลอก <b>Channel access token (long-lived)</b><br>
+              4. เพิ่มเพื่อน LINE Official Account ของคุณ (จะส่ง broadcast ไปทุกคนที่เป็นเพื่อน)<br>
+              💰 ฟรี 200 ข้อความ/เดือน
+            </div>
+            <div class="fg" style="margin-bottom:10px">
+              <input type="password" class="fc" id="lineToken" placeholder="วาง Channel access token (long-lived) ที่นี่...">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-success btn-sm" onclick="saveLineToken()">💾 บันทึก LINE Token</button>
+            </div>
+          </div>
+
+          <!-- Option 2: Discord -->
+          <div style="padding:14px;background:rgba(88,101,242,.05);border:1.5px solid rgba(88,101,242,.25);border-radius:11px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:1.2rem">🎮</span>
+              <b style="color:#5865f2">Discord Webhook</b>
+              <span class="badge bb" style="margin-left:auto">ฟรีไม่จำกัด</span>
+            </div>
+            <div style="font-size:.78rem;color:var(--muted);line-height:1.7;margin-bottom:10px">
+              📌 <b>วิธีตั้งค่า:</b><br>
+              1. เปิด Discord → Server Settings → Integrations → Webhooks<br>
+              2. Create Webhook → ตั้งชื่อ + เลือกห้อง → Copy Webhook URL<br>
+              3. วาง URL ด้านล่างแล้วบันทึก
+            </div>
+            <div class="fg" style="margin-bottom:10px">
+              <input type="text" class="fc" id="discordWebhook" placeholder="https://discord.com/api/webhooks/...">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-navy btn-sm" onclick="saveDiscordWebhook()">💾 บันทึก Discord</button>
+            </div>
+          </div>
+
+          <!-- Test + Status -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-gold" onclick="testLine()">🔔 ทดสอบส่งทุกช่องทาง</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAllNotify()">🗑️ ล้างทั้งหมด</button>
+          </div>
+          <div id="lineStatus" style="margin-top:12px;font-size:.84rem;color:var(--muted);padding:8px 12px;background:var(--surface-2);border-radius:8px;min-height:36px;display:flex;align-items:center"></div>
         </div>
       </div>
       <!-- Tab 5 -->
@@ -3374,20 +3423,59 @@ function switchStab(idx) {
 }
 async function saveLineToken() {
   const t = $('lineToken').value.trim();
-  if (!t) { showErr('กรุณาใส่ Token'); return; }
+  if (!t) { showErr('กรุณาใส่ Channel Access Token'); return; }
   showLoading();
   try {
     const res = await api('saveLineToken', { token: t });
-    if (res.success) { showOk(res.message); $('lineToken').value = ''; $('lineStatus').textContent = '✅ บันทึก Token แล้ว'; }
+    if (res.success) {
+      showOk(res.message);
+      $('lineToken').value = '';
+      $('lineStatus').innerHTML = '✅ บันทึก LINE Token แล้ว';
+    } else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
+}
+async function saveDiscordWebhook() {
+  const t = $('discordWebhook').value.trim();
+  if (!t) { showErr('กรุณาใส่ Discord Webhook URL'); return; }
+  if (!t.startsWith('https://discord.com/api/webhooks/') && !t.startsWith('https://discordapp.com/api/webhooks/')) {
+    showErr('URL ไม่ใช่ Discord Webhook ที่ถูกต้อง');
+    return;
+  }
+  showLoading();
+  try {
+    // Backend detects Discord URL and saves to DISCORD_WEBHOOK key
+    const res = await api('saveLineToken', { token: t });
+    if (res.success) {
+      showOk(res.message);
+      $('discordWebhook').value = '';
+      $('lineStatus').innerHTML = '✅ บันทึก Discord Webhook แล้ว';
+    } else showErr(res.message);
+  } catch (e) { Swal.close(); showErr(e.message); }
+}
+async function clearAllNotify() {
+  _swalpre();
+  const r = await Swal.fire({ title: 'ล้างค่าแจ้งเตือนทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  if (!r.isConfirmed) return;
+  showLoading();
+  try {
+    // Empty token clears all
+    const res = await api('saveLineToken', { token: '' });
+    if (res.success) { showOk(res.message); $('lineStatus').innerHTML = '🗑️ ล้างทั้งหมดแล้ว'; }
     else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 async function testLine() {
   showLoading('กำลังส่งทดสอบ...');
   try {
-    const res = await api('testLineNotify', { message: '✅ ทดสอบแจ้งเตือนจากระบบจัดการพัสดุ' });
-    if (res.success) { showOk('ส่งสำเร็จ!'); $('lineStatus').textContent = '✅ ส่งสำเร็จ ' + new Date().toLocaleTimeString('th-TH'); }
-    else showErr(res.message);
+    const res = await api('testLineNotify', { message: '✅ ทดสอบแจ้งเตือนจากระบบจัดการพัสดุ\n📅 ' + new Date().toLocaleString('th-TH') });
+    Swal.close();
+    if (res.success) {
+      showOk(res.message);
+      $('lineStatus').innerHTML = res.message + '<br><small>เวลา ' + new Date().toLocaleTimeString('th-TH') + '</small>';
+    } else {
+      showErr(res.message);
+      $('lineStatus').innerHTML = '❌ ' + res.message;
+    }
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 
