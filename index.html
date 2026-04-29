@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ระบบจัดการพัสดุ</title>
+<meta name="description" content="ระบบจัดการพัสดุสำหรับองค์กร">
 <!-- Default favicon — replaced dynamically by setFavicon() based on settings -->
 <link rel="icon" id="appFavicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
 <link rel="apple-touch-icon" id="appFaviconApple" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
@@ -147,11 +148,53 @@ table.dt{width:100%;border-collapse:collapse}
 .dt tbody tr:hover{background:rgba(44,95,232,.025)}
 @media(max-width:640px){
   .dt-r thead{display:none}
-  .dt-r tbody tr{display:block;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
-  .dt-r tbody td{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;font-size:.82rem;border-bottom:1px dashed var(--border)}
+  .dt-r tbody tr{
+    display:block;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;
+    margin-bottom:10px;overflow:hidden;padding:4px 0;
+  }
+  .dt-r tbody td{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+    padding:7px 12px;font-size:.82rem;
+    border-bottom:1px dashed var(--border);
+    word-break:break-word;
+    flex-wrap:wrap;
+    min-height:32px;
+  }
   .dt-r tbody td:last-child{border-bottom:none;padding-bottom:10px}
-  .dt-r tbody td::before{content:attr(data-label);font-size:.66rem;font-weight:700;color:var(--muted);font-family:'IBM Plex Mono',monospace;flex-shrink:0;margin-right:8px;text-transform:uppercase;letter-spacing:.4px}
+  .dt-r tbody td::before{
+    content:attr(data-label);font-size:.66rem;font-weight:700;
+    color:var(--muted);font-family:'IBM Plex Mono',monospace;
+    flex-shrink:0;margin-right:8px;text-transform:uppercase;letter-spacing:.4px;
+    min-width:64px;
+  }
+  /* Right-side content wraps and aligns */
+  .dt-r tbody td > *:not(.act-btns){
+    text-align:right;flex:1;min-width:0;
+    overflow-wrap:break-word;word-break:break-word;
+  }
+  .dt-r tbody td .badge{white-space:normal;line-height:1.4}
+  .dt-r tbody td .act-btns{
+    flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;
+    width:100%;margin-top:4px;
+  }
   .tw.mc{overflow:visible}
+  /* History/long content: full-width row for items */
+  .dt-r tbody td[data-label="รายการ"],
+  .dt-r tbody td[data-label="วัตถุประสงค์"],
+  .dt-r tbody td[data-label="รายการพัสดุ"]{
+    flex-direction:column;align-items:stretch;
+  }
+  .dt-r tbody td[data-label="รายการ"]::before,
+  .dt-r tbody td[data-label="วัตถุประสงค์"]::before,
+  .dt-r tbody td[data-label="รายการพัสดุ"]::before{
+    margin-bottom:4px;
+  }
+  .dt-r tbody td[data-label="รายการ"] > *,
+  .dt-r tbody td[data-label="วัตถุประสงค์"] > *,
+  .dt-r tbody td[data-label="รายการพัสดุ"] > *{
+    text-align:left;
+  }
 }
 
 /* ═══ BUTTONS ═══ */
@@ -385,12 +428,6 @@ textarea.fc{min-height:66px;resize:vertical}
 /* Bootstrap modal layer below Swal */
 .modal{z-index:1050!important}
 .modal-backdrop{z-index:1040!important}
-/* Dark mode */
-body.dark .swal2-popup{background:#162035!important;color:#e2e8f8!important}
-body.dark .swal2-title{color:#e2e8f8!important}
-body.dark .swal2-html-container{color:#b0b8d0!important}
-body.dark .swal2-input,body.dark .swal2-textarea{background:rgba(255,255,255,.06)!important;border-color:rgba(255,255,255,.1)!important;color:#e2e8f8!important}
-body.dark .swal2-cancel{background:rgba(255,255,255,.08)!important;color:#e2e8f8!important}
 .sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
 .guest-hint{display:flex;align-items:center;gap:7px;padding:5px 11px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.25);border-radius:8px;font-size:.78rem;color:var(--gold);cursor:pointer;transition:all .18s;white-space:nowrap}
 .guest-hint:hover{background:rgba(212,160,23,.18)}
@@ -399,21 +436,58 @@ body.dark .swal2-cancel{background:rgba(255,255,255,.08)!important;color:#e2e8f8
 
 /* ═══ DARK MODE ═══ */
 body.dark .sidebar{background:linear-gradient(175deg,#0d1828 0%,#090f1a 100%)}
-body.dark .topbar,body.dark .card{background:var(--surface)}
+body.dark .topbar,body.dark .card{background:var(--surface);color:var(--text)}
 body.dark .topbar{background:var(--bg-2);border-bottom-color:var(--border)}
 body.dark .fc,body.dark .fs,body.dark .sinp,body.dark .isel{background:rgba(255,255,255,.06);border-color:var(--border);color:var(--text)}
+body.dark .fc::placeholder,body.dark .sinp::placeholder{color:var(--light)}
 body.dark .modal-content{background:var(--surface)!important;color:var(--text)!important}
-body.dark .dt thead th{background:var(--bg-2)!important}
+body.dark .modal-header{border-bottom-color:var(--border)!important}
+body.dark .modal-footer{border-top-color:var(--border)!important}
+body.dark .modal-title{color:var(--text)!important}
+body.dark .btn-close{filter:invert(1) brightness(.9)}
+body.dark .dt thead th{background:var(--bg-2)!important;color:var(--muted)!important}
+body.dark .dt tbody td{color:var(--text)}
 body.dark .dt tbody tr:hover{background:rgba(255,255,255,.03)}
-body.dark .prod-card{background:var(--surface);border-color:var(--border)}
+body.dark .prod-card{background:var(--surface);border-color:var(--border);color:var(--text)}
+body.dark .prod-name,body.dark .prod-meta{color:var(--text)}
 body.dark .stab-wrap{background:var(--bg-2)}
-body.dark .stab.on{background:var(--surface)}
+body.dark .stab{color:var(--muted)}
+body.dark .stab.on{background:var(--surface);color:var(--text)}
 body.dark .pin-ov{background:linear-gradient(135deg,#0d1828,#090f1a)}
 body.dark .fbar{background:var(--surface);border-color:var(--border)}
 body.dark .bc-wrap{border-color:var(--border)}
-body.dark .stat-c{background:var(--surface);border-color:var(--border)}
+body.dark .stat-c{background:var(--surface);border-color:var(--border);color:var(--text)}
+body.dark .stat-val{color:var(--text)}
 body.dark #PL{background:var(--bg)}
-body.dark .info-box{border-color:var(--border)}
+body.dark .info-box{border-color:var(--border);color:var(--text)}
+body.dark .info-blue{background:rgba(44,95,232,.1)}
+body.dark .info-green{background:rgba(31,166,114,.12);color:#5fd9a8}
+body.dark .info-warn{background:rgba(224,128,32,.1);color:#f0a060}
+body.dark .info-red{background:rgba(217,64,64,.1);color:#f08585}
+body.dark .combo-input{background:rgba(255,255,255,.06)!important;color:var(--text)!important}
+body.dark .combo-input::placeholder{color:var(--light)!important}
+body.dark .combo-list{background:var(--surface);border-color:var(--border)}
+body.dark .combo-opt{color:var(--text);border-bottom-color:var(--border)}
+body.dark .combo-opt:hover,body.dark .combo-opt.hl{background:rgba(255,255,255,.06)}
+body.dark .combo-opt.sel{background:rgba(44,95,232,.2);color:#80a8ff}
+body.dark .combo-opt mark{background:rgba(212,160,23,.4);color:#f0c040}
+body.dark .btn-ghost{color:var(--text);border-color:var(--border)}
+body.dark .btn-ghost:hover{background:var(--surface-2)}
+body.dark .flabel{color:var(--muted)}
+body.dark .card-ttl,body.dark .card-hd{color:var(--text)}
+body.dark .card-hd{border-bottom-color:var(--border)}
+body.dark .page-hd h1{color:var(--text)}
+body.dark a{color:#80a8ff}
+body.dark .form-check-input{background-color:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2)}
+body.dark .form-check-input:checked{background-color:var(--blue);border-color:var(--blue)}
+/* Dark mode Swal */
+body.dark .swal2-popup{background:#162035!important;color:#e2e8f8!important}
+body.dark .swal2-title{color:#e2e8f8!important}
+body.dark .swal2-html-container{color:#b0b8d0!important}
+body.dark .swal2-input,body.dark .swal2-textarea{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.15)!important;color:#e2e8f8!important}
+body.dark .swal2-input::placeholder,body.dark .swal2-textarea::placeholder{color:#7a8aaa!important}
+body.dark .swal2-actions .swal2-cancel{background:rgba(255,255,255,.1)!important;color:#e2e8f8!important}
+body.dark .swal2-validation-message{background:rgba(217,64,64,.15)!important;color:#f08585!important}
 @media(max-width:640px){body.dark .dt-r tbody tr{background:var(--surface);border-color:var(--border)}}
 
 /* ═══ MOBILE ═══ */
@@ -586,15 +660,15 @@ body.dark .info-box{border-color:var(--border)}
     <!-- ══ HISTORY ══ -->
     <div class="section" id="section-history">
       <div class="page-hd"><div><h1>📜 ประวัติการเบิก</h1><p>ตรวจสอบรายการทั้งหมด</p></div>
-        <div class="pg-act"><button class="btn btn-ghost btn-sm" onclick="loadHistory()">🔄</button></div>
+        <div class="pg-act"><button class="btn btn-ghost btn-sm" onclick="loadHistory(true)">🔄 รีเฟรช</button></div>
       </div>
       <div class="fbar">
-        <div class="fg admin-only" id="hUserWrap" style="display:none;min-width:125px"><label class="flabel">ผู้เบิก</label><input type="text" class="fc" id="hUser" placeholder="ชื่อ..." oninput="loadHistory()"></div>
-        <div class="fg" style="min-width:115px"><label class="flabel">ชื่อพัสดุ</label><input type="text" class="fc" id="hProd" placeholder="ชื่อ..." oninput="loadHistory()"></div>
+        <div class="fg admin-only" id="hUserWrap" style="display:none;min-width:125px"><label class="flabel">ผู้เบิก</label><input type="text" class="fc" id="hUser" placeholder="ชื่อ..." oninput="filterHistory()"></div>
+        <div class="fg" style="min-width:115px"><label class="flabel">ชื่อพัสดุ</label><input type="text" class="fc" id="hProd" placeholder="ชื่อ..." oninput="filterHistory()"></div>
         <div class="fg" style="min-width:100px"><label class="flabel">ช่วงเวลา</label>
-          <select class="fc" id="hPeriod" onchange="loadHistory()"><option value="">ทั้งหมด</option><option value="day">วันนี้</option><option value="week">7 วัน</option><option value="month">เดือนนี้</option><option value="year">ปีนี้</option></select></div>
+          <select class="fc" id="hPeriod" onchange="filterHistory()"><option value="">ทั้งหมด</option><option value="day">วันนี้</option><option value="week">7 วัน</option><option value="month">เดือนนี้</option><option value="year">ปีนี้</option></select></div>
         <div class="fg" style="min-width:100px"><label class="flabel">สถานะ</label>
-          <select class="fc" id="hStatus" onchange="loadHistory()">
+          <select class="fc" id="hStatus" onchange="filterHistory()">
             <option value="all">ทั้งหมด</option>
             <option value="Approved">อนุมัติ</option>
             <option value="Pending">รออนุมัติ</option>
@@ -602,6 +676,7 @@ body.dark .info-box{border-color:var(--border)}
             <option value="Cancelled">ยกเลิก</option>
           </select></div>
         <button class="btn btn-ghost btn-sm" onclick="resetHistFilter()" style="align-self:flex-end" title="รีเซ็ตตัวกรอง">♻️</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadHistory(true)" style="align-self:flex-end" title="โหลดข้อมูลใหม่จากเซิร์ฟเวอร์">🔄</button>
       </div>
       <div class="card"><div class="tw mc"><table class="dt dt-r">
         <thead><tr><th>รหัส</th><th>วันที่</th><th>ผู้เบิก</th><th>ฝ่าย</th><th>รายการพัสดุ</th><th>รวม</th><th>วัตถุประสงค์</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
@@ -2178,7 +2253,7 @@ function logout() {
     didOpen: _fixBodyForSwal,
   }).then(r => {
     if (!r.isConfirmed) return;
-    CU = null; CART = []; _allUsers = [];
+    CU = null; CART = []; _allUsers = []; _HIST_CACHE = null;
     cc('products', 'settings');
     // Reset UI
     $('topAva').style.display = 'none';
@@ -2672,8 +2747,13 @@ async function quickApv(row, status) {
   showLoading();
   try {
     const res = await api('updateRequestStatus', { row, newStatus: status, adminNote: '', adminName: CU?.name || '' });
-    if (res.success) { cc('products'); showOk(res.message); loadRequests(); loadDashboard(); }
-    else showErr(res.message);
+    if (res.success) {
+      cc('products');
+      _HIST_CACHE = null; // invalidate so next history view fetches fresh
+      showOk(res.message);
+      loadRequests();
+      setTimeout(() => loadDashboard(), 200);
+    } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 // Admin: edit request qty (works for Pending and Approved — auto-adjusts stock)
@@ -2684,7 +2764,7 @@ async function editReqQty(row, currentQty, prodName, unit, status) {
   const r = await Swal.fire({
     title: '✏️ แก้ไขจำนวน',
     html: `<div style="font-weight:600;margin-bottom:6px">${esc(prodName)}</div>
-      <div style="font-size:.78rem;color:#666;margin-bottom:10px">จำนวนเดิม: <b>${currentQty} ${esc(unit||'')}</b></div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">จำนวนเดิม: <b>${currentQty} ${esc(unit||'')}</b></div>
       ${isApproved ? `<div style="font-size:.76rem;color:var(--orange);background:rgba(224,128,32,.08);padding:8px 10px;border-radius:6px;margin-bottom:12px;text-align:left;line-height:1.5">
         ⚠️ <b>รายการนี้อนุมัติแล้ว</b><br>
         การแก้ไขจะปรับสต็อกตามผลต่างทันที:<br>
@@ -2713,22 +2793,28 @@ async function editReqQty(row, currentQty, prodName, unit, status) {
     });
     if (res.success) {
       cc('products');
+      // Optimistic update: patch the cache + re-render only (no GAS reload)
+      if (_HIST_CACHE) {
+        const it = _HIST_CACHE.find(x => x.row === row);
+        if (it) it.qty = newQty;
+      }
       showOk(res.message);
-      // Refresh whichever screen is active
-      if ($('section-history')?.classList.contains('on')) loadHistory();
+      // Re-render whichever screen is active — using cache, no GAS call
+      if ($('section-history')?.classList.contains('on')) renderHistory();
       if ($('section-approvals')?.classList.contains('on')) loadRequests();
-      loadDashboard();
+      // Dashboard only updates in background
+      setTimeout(() => loadDashboard(), 200);
     } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
-// Cancel request (own pending or admin's anything)
+// Cancel request — optimistic cache update
 async function cancelReq(row, prodName, qty, status) {
   _swalpre();
   const r = await Swal.fire({
     title: '🚫 ยกเลิกการเบิก?',
     html: `<div style="font-weight:600;margin-bottom:6px">${esc(prodName)} × ${qty}</div>
-      <div style="font-size:.76rem;color:#666;margin-bottom:8px">สถานะ: ${esc(status)}</div>
-      ${status === 'Approved' ? '<div style="font-size:.76rem;color:var(--orange);background:rgba(224,128,32,.06);padding:8px;border-radius:6px;margin-bottom:8px">⚠️ รายการนี้อนุมัติแล้ว — การยกเลิกจะคืนสต็อกให้พัสดุ</div>' : ''}`,
+      <div style="font-size:.76rem;color:var(--muted);margin-bottom:8px">สถานะ: ${esc(status)}</div>
+      ${status === 'Approved' ? '<div style="font-size:.76rem;color:var(--orange);background:rgba(224,128,32,.08);padding:8px;border-radius:6px;margin-bottom:8px">⚠️ รายการนี้อนุมัติแล้ว — การยกเลิกจะคืนสต็อกให้พัสดุ</div>' : ''}`,
     input: 'text',
     inputPlaceholder: 'ระบุเหตุผล (ไม่บังคับ)',
     showCancelButton: true,
@@ -2741,18 +2827,20 @@ async function cancelReq(row, prodName, qty, status) {
   showLoading('กำลังยกเลิก...');
   try {
     const res = await api('cancelRequest', {
-      row,
-      userId: CU?.id,
-      role: CU?.role || 'User',
+      row, userId: CU?.id, role: CU?.role || 'User',
       reason: r.value || '-'
     });
     if (res.success) {
       cc('products');
+      // Optimistic update
+      if (_HIST_CACHE) {
+        const it = _HIST_CACHE.find(x => x.row === row);
+        if (it) it.status = 'Cancelled';
+      }
       showOk(res.message);
-      // Refresh whichever screen we're on
-      if ($('section-history')?.classList.contains('on')) loadHistory();
+      if ($('section-history')?.classList.contains('on')) renderHistory();
       if ($('section-approvals')?.classList.contains('on')) loadRequests();
-      loadDashboard();
+      setTimeout(() => loadDashboard(), 200);
     } else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
@@ -3018,6 +3106,7 @@ async function submitCart() {
       $('cartFab').classList.add('cart-hide');
       $('cartPurpose').value = '';
       $('cartNote').value = '';
+      _HIST_CACHE = null; // user has new history entries
       // Re-render grid with updated stock (already optimistic, no need to refetch)
       filterProdGrid();
       // Show clear status message
@@ -3047,66 +3136,121 @@ function resetHistFilter() {
   $('hStatus').value = 'all';
   loadHistory();
 }
-async function loadHistory() {
+// History caching — fetch once, filter client-side
+let _HIST_CACHE = null;
+let _HIST_TIMER = null;
+
+function resetHistFilter() {
+  ['hUser', 'hProd'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+  $('hPeriod').value = '';
+  $('hStatus').value = 'all';
+  renderHistory();
+}
+// Public API: fetch from GAS once, then re-render
+async function loadHistory(force = false) {
   if (!CU) return;
   const tb = $('histTb');
   if (!tb) return;
-  tb.innerHTML = loadR(8);
-  // GAS getUserHistory(userId, role, filters) — switch calls getUserHistory(data.userId, data.role, data.filters)
-  const filters = {
-    productName: $('hProd')?.value || '',
-    period: $('hPeriod')?.value || '',
-    status: $('hStatus')?.value || 'all',
-  };
-  if (CU?.role === 'Admin') filters.userName = $('hUser')?.value || '';
+  // Use cache for instant render (filtering)
+  if (!force && _HIST_CACHE) {
+    renderHistory();
+    return;
+  }
+  tb.innerHTML = loadR(9);
   try {
+    // Fetch ALL history (no filters server-side — filter on client for instant search)
     const res = await api('getUserHistory', {
       userId: CU?.role === 'Admin' ? '' : CU?.id,
       role: CU?.role || 'User',
-      filters,
+      filters: {}, // no filter — get all
     });
-    const list = Array.isArray(res) ? res : (res?.history || []);
-    if (!list.length) { tb.innerHTML = emptyR(9, '📋 ไม่พบข้อมูล'); return; }
-    tb.innerHTML = list.map(r => {
-      // Status badge
-      const stMap = {
-        Approved:  '<span class="badge bs">✅ อนุมัติ</span>',
-        Rejected:  '<span class="badge bd">❌ ไม่อนุมัติ</span>',
-        Pending:   '<span class="badge bw">⏳ รออนุมัติ</span>',
-        Cancelled: '<span class="badge bn">🚫 ยกเลิก</span>',
-      };
-      const stBadge = stMap[r.status] || `<span class="badge bn">${esc(r.status)}</span>`;
-      const itemBadge = `<span class="badge bb txs">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
-      // Show row identifier — backend doesn't always include row in history; use reqId fallback
-      const rowNum = r.row || 0;
-      // Cancel button conditions:
-      //   Pending: owner OR admin can cancel
-      //   Approved: only admin can cancel (will restore stock)
-      //   Rejected/Cancelled: never
-      const isAdmin = CU?.role === 'Admin';
-      const isOwner = String(r.userId || '').trim() === String(CU?.id || '').trim();
-      let canCancel = false;
-      if (r.status === 'Pending' && (isOwner || isAdmin)) canCancel = true;
-      else if (r.status === 'Approved' && isAdmin) canCancel = true;
-      const canEdit = isAdmin && (r.status === 'Pending' || r.status === 'Approved');
-      const actionBtns = (canCancel || canEdit) ? `
-        <div class="act-btns" style="flex-wrap:nowrap">
-          ${canEdit ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','${esc(r.status)}')" title="แก้จำนวน">✏️</button>` : ''}
-          ${canCancel ? `<button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="cancelReq(${rowNum},'${esc(r.productName)}',${r.qty},'${esc(r.status)}')" title="ยกเลิก">🚫</button>` : ''}
-        </div>` : '<span class="muted txs">—</span>';
-      return `<tr>
-        <td data-label="รหัส"><span class="mono txs">${esc(r.reqId || '—')}</span></td>
-        <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
-        <td data-label="ผู้เบิก">${esc(r.userName || '—')}</td>
-        <td data-label="ฝ่าย"><span class="txs muted">${esc(r.department || '—')}</span></td>
-        <td data-label="รายการ">${itemBadge}</td>
-        <td data-label="รวม"><b>${r.qty || 0}</b></td>
-        <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
-        <td data-label="สถานะ">${stBadge}</td>
-        <td data-label="จัดการ">${actionBtns}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) { tb.innerHTML = emptyR(9, '⚠️ ' + e.message); }
+    _HIST_CACHE = Array.isArray(res) ? res : (res?.history || []);
+    renderHistory();
+  } catch (e) {
+    tb.innerHTML = emptyR(9, '⚠️ ' + e.message);
+  }
+}
+// Debounced filter — called from input.oninput
+function filterHistory() {
+  clearTimeout(_HIST_TIMER);
+  _HIST_TIMER = setTimeout(renderHistory, 150); // 150ms debounce
+}
+// Render with current filter values — uses cache, no GAS call
+function renderHistory() {
+  const tb = $('histTb');
+  if (!tb || !_HIST_CACHE) return;
+  const fProd = ($('hProd')?.value || '').trim().toLowerCase();
+  const fUser = ($('hUser')?.value || '').trim().toLowerCase();
+  const fPeriod = $('hPeriod')?.value || '';
+  const fStatus = $('hStatus')?.value || 'all';
+  const now = new Date();
+  let list = _HIST_CACHE.slice();
+  if (fProd) list = list.filter(r => String(r.productName||'').toLowerCase().includes(fProd));
+  if (fUser && CU?.role === 'Admin') list = list.filter(r => String(r.userName||'').toLowerCase().includes(fUser));
+  if (fStatus && fStatus !== 'all') list = list.filter(r => r.status === fStatus);
+  if (fPeriod) {
+    list = list.filter(r => {
+      const d = _parseHistDate(r.date);
+      if (!d) return false;
+      if (fPeriod === 'day') return d.toDateString() === now.toDateString();
+      if (fPeriod === 'week') return (now - d) / 86400000 <= 7;
+      if (fPeriod === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      if (fPeriod === 'year') return d.getFullYear() === now.getFullYear();
+      return true;
+    });
+  }
+  if (!list.length) { tb.innerHTML = emptyR(9, '📋 ไม่พบข้อมูล'); return; }
+  const stMap = {
+    Approved:  '<span class="badge bs">✅ อนุมัติ</span>',
+    Rejected:  '<span class="badge bd">❌ ไม่อนุมัติ</span>',
+    Pending:   '<span class="badge bw">⏳ รออนุมัติ</span>',
+    Cancelled: '<span class="badge bn">🚫 ยกเลิก</span>',
+  };
+  const isAdmin = CU?.role === 'Admin';
+  tb.innerHTML = list.map(r => {
+    const stBadge = stMap[r.status] || `<span class="badge bn">${esc(r.status)}</span>`;
+    const itemBadge = `<span class="badge bb txs">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
+    const rowNum = r.row || 0;
+    const isOwner = String(r.userId || '').trim() === String(CU?.id || '').trim();
+    let canCancel = false;
+    if (r.status === 'Pending' && (isOwner || isAdmin)) canCancel = true;
+    else if (r.status === 'Approved' && isAdmin) canCancel = true;
+    const canEdit = isAdmin && (r.status === 'Pending' || r.status === 'Approved');
+    const actionBtns = (canCancel || canEdit) ? `
+      <div class="act-btns" style="flex-wrap:nowrap">
+        ${canEdit ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','${esc(r.status)}')" title="แก้จำนวน">✏️</button>` : ''}
+        ${canCancel ? `<button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="cancelReq(${rowNum},'${esc(r.productName)}',${r.qty},'${esc(r.status)}')" title="ยกเลิก">🚫</button>` : ''}
+      </div>` : '<span class="muted txs">—</span>';
+    return `<tr>
+      <td data-label="รหัส"><span class="mono txs">${esc(r.reqId || '—')}</span></td>
+      <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
+      <td data-label="ผู้เบิก">${esc(r.userName || '—')}</td>
+      <td data-label="ฝ่าย"><span class="txs muted">${esc(r.department || '—')}</span></td>
+      <td data-label="รายการ">${itemBadge}</td>
+      <td data-label="รวม"><b>${r.qty || 0}</b></td>
+      <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
+      <td data-label="สถานะ">${stBadge}</td>
+      <td data-label="จัดการ">${actionBtns}</td>
+    </tr>`;
+  }).join('');
+}
+// Helper: parse date strings like "28/04/2026 12:52" or ISO
+function _parseHistDate(s) {
+  if (!s || s === '-' || s === '—') return null;
+  if (typeof s !== 'string') return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) { const d = new Date(s); return isNaN(d) ? null : d; }
+  // Thai format dd/MM/yyyy HH:mm
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return null;
+  let yr = +m[3];
+  if (yr > 2400) yr -= 543; // Buddhist year
+  return new Date(yr, +m[2] - 1, +m[1], +(m[4]||0), +(m[5]||0));
+}
+// Update an item in cache without re-fetching everything
+function _updateHistCache(reqId, updates) {
+  if (!_HIST_CACHE) return;
+  const it = _HIST_CACHE.find(r => r.reqId === reqId || r.row === updates?.row);
+  if (it) Object.assign(it, updates);
 }
 
 // ─── USERS ────────────────────────────────────────────────
