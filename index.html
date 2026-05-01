@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ระบบจัดการพัสดุ</title>
-<meta name="description" content="ระบบจัดการพัสดุสำหรับองค์กร">
 <!-- Default favicon — replaced dynamically by setFavicon() based on settings -->
 <link rel="icon" id="appFavicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
 <link rel="apple-touch-icon" id="appFaviconApple" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
@@ -105,6 +104,8 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--te
 .pin-dots{display:flex;justify-content:center;gap:10px;margin:13px 0}
 .pd{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:transparent;transition:all .14s}
 .pd.f{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(212,160,23,.5)}
+/* Dots 5–6 are optional — show as dashed when empty */
+#d4:not(.f),#d5:not(.f){border-style:dashed;border-color:rgba(255,255,255,.18)}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px}
 .pk{padding:14px;border:1.5px solid rgba(255,255,255,.1);border-radius:11px;background:rgba(255,255,255,.06);color:#fff;font-size:1.18rem;font-weight:600;cursor:pointer;transition:all .12s;font-family:'Noto Sans Thai',sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .pk:hover{background:rgba(255,255,255,.12)}
@@ -534,6 +535,13 @@ body.dark .swal2-validation-message{background:rgba(217,64,64,.15)!important;col
       <button class="pk z" onclick="pp(0)">0</button>
       <button class="pk" onclick="pclr()" style="font-size:.65rem;color:rgba(255,255,255,.38)">ล้าง</button>
     </div>
+    <button id="pinSubmitBtn" onclick="submitPin()" disabled
+      style="display:none;width:100%;margin-top:11px;padding:13px;border:none;border-radius:11px;
+      background:linear-gradient(135deg,#d4a017,#f0c040);color:#0c1a2e;
+      font-family:'Noto Sans Thai',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;
+      transition:all .18s;opacity:.45">
+      🔓 เข้าสู่ระบบ
+    </button>
     <div id="pinCreateWrap" style="display:none">
       <div style="font-size:.79rem;color:rgba(255,255,255,.48);margin-bottom:11px;line-height:1.7">ยังไม่ได้กำหนด PIN<br>กดปุ่มด้านล่างเพื่อสร้างรหัสของคุณ</div>
       <button class="pin-create-btn" onclick="showPinNewForm()">🔑 สร้าง PIN ใหม่</button>
@@ -2085,6 +2093,7 @@ function resetPinUI() {
   $('pinSel').value = '';
   $('pinDots').style.display = 'none';
   $('pinPad').style.display = 'none';
+  if ($('pinSubmitBtn')) $('pinSubmitBtn').style.display = 'none';
   $('pinCreateWrap').style.display = 'none';
   $('pinNewForm').style.display = 'none';
   setMsg('');
@@ -2121,6 +2130,7 @@ function onUserSel() {
   const opt = sel.options[sel.selectedIndex];
   $('pinDots').style.display = 'none';
   $('pinPad').style.display = 'none';
+  if ($('pinSubmitBtn')) $('pinSubmitBtn').style.display = 'none';
   $('pinCreateWrap').style.display = 'none';
   $('pinNewForm').style.display = 'none';
   setMsg('');
@@ -2130,20 +2140,44 @@ function onUserSel() {
   if (opt.dataset.hasPin === 'true' || opt.dataset.hasPin === true) {
     $('pinDots').style.display = 'flex';
     $('pinPad').style.display = 'grid';
-    setMsg('ใส่ PIN ของคุณ');
+    if ($('pinSubmitBtn')) $('pinSubmitBtn').style.display = 'block';
+    setMsg('ใส่ PIN ของคุณ (4–6 หลัก)');
   } else {
     $('pinCreateWrap').style.display = 'block';
   }
 }
 function showPinNewForm() { $('pinCreateWrap').style.display = 'none'; $('pinNewForm').style.display = 'block'; $('pn1').focus(); }
 function cancelPinNew() { $('pinNewForm').style.display = 'none'; $('pinCreateWrap').style.display = 'block'; $('pn1').value = ''; $('pn2').value = ''; }
-function pp(n) { if (_PIN_INPUT.length >= 6) return; _PIN_INPUT += n; updatePinDots(); if (_PIN_INPUT.length === 6) setTimeout(submitPin, 200); }
+function pp(n) {
+  if (_PIN_INPUT.length >= 6) return;
+  _PIN_INPUT += n;
+  updatePinDots();
+  // At 6 digits: auto-submit (most common case)
+  if (_PIN_INPUT.length === 6) setTimeout(submitPin, 200);
+}
 function pdel() { _PIN_INPUT = _PIN_INPUT.slice(0, -1); updatePinDots(); }
-function pclr() { _PIN_INPUT = ''; updatePinDots(); setMsg('ใส่ PIN ของคุณ'); }
-function updatePinDots() { for (let i = 0; i < 6; i++) { const el = $('d' + i); if (el) el.classList.toggle('f', i < _PIN_INPUT.length); } }
+function pclr() { _PIN_INPUT = ''; updatePinDots(); setMsg('ใส่ PIN ของคุณ (4–6 หลัก)'); }
+function updatePinDots() {
+  for (let i = 0; i < 6; i++) {
+    const el = $('d' + i);
+    if (el) el.classList.toggle('f', i < _PIN_INPUT.length);
+  }
+  // Enable submit button when PIN is 4-6 digits
+  const btn = $('pinSubmitBtn');
+  if (btn) {
+    const valid = _PIN_INPUT.length >= 4 && _PIN_INPUT.length <= 6;
+    btn.disabled = !valid;
+    btn.style.opacity = valid ? '1' : '.45';
+    btn.style.cursor = valid ? 'pointer' : 'not-allowed';
+  }
+}
 async function submitPin() {
   const uid = $('pinSel').value;
-  if (!uid || !_PIN_INPUT) return;
+  if (!uid) { setMsg('กรุณาเลือกชื่อ', 'err'); return; }
+  if (!_PIN_INPUT || _PIN_INPUT.length < 4) {
+    setMsg('PIN ต้องมีอย่างน้อย 4 หลัก', 'err');
+    return;
+  }
   setMsg('กำลังตรวจสอบ...', 'ok');
   try {
     const res = await api('verifyPin', { userId: uid, pin: _PIN_INPUT });
