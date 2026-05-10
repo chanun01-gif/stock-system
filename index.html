@@ -641,6 +641,20 @@ body.dark .gs-inp{color:var(--text)}
   .card{box-shadow:none!important;border:1px solid #bbb!important;border-radius:4px!important}
   .dt thead th{background:#f0f0f0!important;color:#333!important;border-bottom:2px solid #aaa!important;position:static!important}
 }
+/* ═══ EXPANDABLE TABLE ROWS ═══ */
+.dt tr.exp-row{cursor:pointer;transition:background .15s}
+.dt tr.exp-row:hover{background:rgba(var(--accent-rgb,44,95,232),.06)!important}
+.dt tr.exp-row td:first-child::before{content:'▶';display:inline-block;font-size:.6rem;margin-right:6px;color:var(--muted);transition:transform .2s;vertical-align:middle}
+.dt tr.exp-row.open td:first-child::before{transform:rotate(90deg);color:var(--accent,#2c5fe8)}
+.dt tr.detail-row td{padding:0!important;border-top:none!important}
+.dt tr.detail-row.hidden{display:none}
+.detail-panel{padding:14px 18px;background:var(--surface-2);border-top:2px solid var(--accent,#2c5fe8);border-radius:0 0 10px 10px}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px 20px;margin-bottom:12px}
+.detail-field{display:flex;flex-direction:column;gap:2px}
+.detail-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.detail-value{font-size:.82rem;color:var(--text)}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--border)}
+.prod-detail-img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -878,7 +892,7 @@ body.dark .gs-inp{color:var(--text)}
         <button class="btn btn-ghost btn-sm" onclick="loadHistory(true)" style="align-self:flex-end" title="โหลดข้อมูลใหม่จากเซิร์ฟเวอร์">🔄</button>
       </div>
       <div class="card"><div class="tw mc"><table class="dt dt-r">
-        <thead><tr><th>รหัส</th><th>วันที่</th><th>ผู้เบิก</th><th>ฝ่าย</th><th>รายการพัสดุ</th><th>รวม</th><th>วัตถุประสงค์</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <thead><tr><th>วันที่ / รหัส</th><th>ผู้เบิก</th><th>รายการ</th><th>สถานะ</th></tr></thead>
         <tbody id="histTb"></tbody>
       </table></div></div>
     </div>
@@ -904,7 +918,7 @@ body.dark .gs-inp{color:var(--text)}
         <select class="isel" id="prodStockF" onchange="filterProdTable()"><option value="">ทุกสถานะ</option><option value="low">ใกล้หมด</option><option value="ok">ปกติ</option><option value="zero">หมดสต็อก</option></select>
       </div>
       <div class="card"><div class="tw mc"><table class="dt dt-r">
-        <thead><tr><th>รูป</th><th>รหัส/บาร์โค้ด</th><th>ชื่อพัสดุ</th><th>หมวดหมู่</th><th>สต็อก</th><th>ราคา</th><th>ที่เก็บ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <thead><tr><th>รูป / ชื่อพัสดุ</th><th>สต็อก</th><th>ราคา</th><th>สถานะ</th></tr></thead>
         <tbody id="prodTb"></tbody>
       </table></div></div>
     </div>
@@ -2575,6 +2589,9 @@ function logout() {
     CU = null; CART = []; _allUsers = []; _HIST_CACHE = null;
     _clearSession();
     if (_adminInterval) { clearInterval(_adminInterval); _adminInterval = null; }
+    // Clear any rendered table HTML that may contain admin action buttons
+    ['histTb','apvTb','usersTb'].forEach(id => { const el = $(id); if (el) el.innerHTML = ''; });
+    const ac = $('actCard'); if (ac) ac.style.display = 'none';
     cc('products', 'settings');
     // Reset UI
     $('topAva').style.display = 'none';
@@ -2943,7 +2960,7 @@ function renderTrendChart(trend) {
 async function loadProducts() {
   const tb = $('prodTb');
   if (!tb) return;
-  tb.innerHTML = loadR(9);
+  tb.innerHTML = loadR(4);
   try {
     const res = await api('getProducts');
     const list = Array.isArray(res) ? res : (res?.products || []);
@@ -2954,7 +2971,7 @@ async function loadProducts() {
     const cats = await loadCatsIfNeeded();
     renderCatChips(list);
     renderProdTable(list);
-  } catch (e) { tb.innerHTML = emptyR(9, '⚠️ ' + e.message); }
+  } catch (e) { tb.innerHTML = emptyR(4, '⚠️ ' + e.message); }
 }
 async function loadCatsIfNeeded() {
   if (ALL_CATS.length) return ALL_CATS;
@@ -2978,8 +2995,8 @@ function filterProdTable() {
 function renderProdTable(list) {
   const tb = $('prodTb');
   if (!tb) return;
-  if (!list?.length) { tb.innerHTML = emptyR(9, '🔍 ไม่พบพัสดุ'); return; }
-  tb.innerHTML = list.map(p => {
+  if (!list?.length) { tb.innerHTML = emptyR(4, '🔍 ไม่พบพัสดุ'); return; }
+  tb.innerHTML = list.map((p, i) => {
     const st = Number(p.stock || 0);
     const mn = Number(p.minStock || 0);
     const cl = st === 0 ? 's-low' : st <= mn ? 's-warn' : 's-ok';
@@ -2989,30 +3006,57 @@ function renderProdTable(list) {
       ? `<img src="${esc(p.image)}" class="img-th" onerror="this.outerHTML='<span style=\\'font-size:1.3rem\\'>📦</span>'">`
       : `<span style="font-size:1.3rem">📦</span>`;
     const isActive = p.status === 'Active' || !p.status;
-    return `<tr>
-      <td data-label="รูป">${img}</td>
-      <td data-label="รหัส/บาร์โค้ด"><div class="mono txs">${esc(p.id)}</div><div class="mono txs muted">${esc(p.barcode || '—')}</div></td>
-      <td data-label="ชื่อพัสดุ"><b>${esc(p.name)}</b>${p.description ? `<div class="txs muted" style="margin-top:2px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.description)}</div>` : ''}</td>
-      <td data-label="หมวดหมู่"><span class="badge bn">${esc(p.category || '—')}</span></td>
-      <td data-label="สต็อก">
-        <span class="${cl} fw8">${st}</span><span class="muted txs"> ${esc(p.unit || '')}</span>
-        <div><div class="stock-bar-wrap"><div class="stock-bar" style="width:${pct}%;background:${barColor}"></div></div>
-          <span class="txs muted"> Min:${mn}</span></div>
-      </td>
-      <td data-label="ราคา"><span class="mono txs">฿${fmtMoney(p.price)}</span></td>
-      <td data-label="ที่เก็บ"><span class="txs muted">${esc(p.location || '—')}</span></td>
-      <td data-label="สถานะ"><span class="badge ${isActive ? 'bs' : 'bd'}">${isActive ? 'ใช้งาน' : 'ปิด'}</span></td>
-      <td data-label="จัดการ">
-        <div class="act-btns">
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openBcModal('${encP(p)}')" title="Barcode">📊</button>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openStockLog('${esc(p.id)}','${esc(p.name)}')" title="ประวัติสต็อก">📋</button>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openAdj('${esc(p.id)}','${esc(p.name)}',${st},'${esc(p.unit)}')" title="ปรับสต็อก">⚖️</button>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="openProdModal('${encP(p)}')" title="แก้ไข">✏️</button>
-          <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="delProd(${p.row},'${esc(p.name)}')" title="ลบ">🗑️</button>
+    const stLabel = st === 0 ? '<span class="badge bd txs">หมดสต็อก</span>' : st <= mn ? '<span class="badge" style="background:rgba(224,128,32,.15);color:var(--orange)" class="txs">ใกล้หมด</span>' : '';
+    const detailId = `pd-${i}`;
+    const detailImg = p.image ? `<img src="${esc(p.image)}" class="prod-detail-img" onerror="this.outerHTML='<span style=\\'font-size:2rem\\'>📦</span>'">` : '<span style="font-size:2rem">📦</span>';
+    const detailPanel = `<tr class="detail-row hidden" id="${detailId}"><td colspan="4">
+      <div class="detail-panel">
+        <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:12px">
+          ${detailImg}
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:.95rem">${esc(p.name)}</div>
+            <div class="txs muted">${esc(p.category || '—')}</div>
+            ${p.description ? `<div class="txs muted" style="margin-top:4px">${esc(p.description)}</div>` : ''}
+          </div>
         </div>
-      </td>
+        <div class="detail-grid">
+          <div class="detail-field"><span class="detail-label">รหัสพัสดุ</span><span class="detail-value mono">${esc(p.id)}</span></div>
+          <div class="detail-field"><span class="detail-label">บาร์โค้ด</span><span class="detail-value mono">${esc(p.barcode || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">สต็อก</span><span class="detail-value ${cl} fw8">${st} ${esc(p.unit || '')}</span></div>
+          <div class="detail-field"><span class="detail-label">Min / Max</span><span class="detail-value">${mn} / ${esc(String(p.maxStock || '—'))}</span></div>
+          <div class="detail-field"><span class="detail-label">ราคา</span><span class="detail-value mono">฿${fmtMoney(p.price)}</span></div>
+          <div class="detail-field"><span class="detail-label">ที่เก็บ</span><span class="detail-value">${esc(p.location || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">สถานะ</span><span class="detail-value"><span class="badge ${isActive ? 'bs' : 'bd'}">${isActive ? 'ใช้งาน' : 'ปิด'}</span></span></div>
+        </div>
+        <div class="detail-actions">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openBcModal('${encP(p)}')">📊 บาร์โค้ด</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openStockLog('${esc(p.id)}','${esc(p.name)}')">📋 ประวัติสต็อก</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAdj('${esc(p.id)}','${esc(p.name)}',${st},'${esc(p.unit)}')">⚖️ ปรับสต็อก</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openProdModal('${encP(p)}')">✏️ แก้ไข</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="event.stopPropagation();delProd(${p.row},'${esc(p.name)}')">🗑️ ลบ</button>
+        </div>
+      </div>
+    </td></tr>`;
+    const summaryRow = `<tr class="exp-row" onclick="toggleProdDetail('${detailId}',this)">
+      <td data-label="ชื่อพัสดุ"><div style="display:flex;align-items:center;gap:10px">${img}<div><div style="font-weight:600">${esc(p.name)}</div><div class="txs muted">${esc(p.category || '—')}</div></div></div></td>
+      <td data-label="สต็อก"><span class="${cl} fw8">${st}</span><span class="muted txs"> ${esc(p.unit || '')}</span><div class="stock-bar-wrap" style="margin-top:3px"><div class="stock-bar" style="width:${pct}%;background:${barColor}"></div></div>${stLabel}</td>
+      <td data-label="ราคา"><span class="mono txs">฿${fmtMoney(p.price)}</span></td>
+      <td data-label="สถานะ"><span class="badge ${isActive ? 'bs' : 'bd'}">${isActive ? 'ใช้งาน' : 'ปิด'}</span></td>
     </tr>`;
+    return summaryRow + detailPanel;
   }).join('');
+}
+function toggleProdDetail(detailId, row) {
+  const det = document.getElementById(detailId);
+  if (!det) return;
+  const isOpen = !det.classList.contains('hidden');
+  document.querySelectorAll('.detail-row').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.dt tr.exp-row.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) {
+    det.classList.remove('hidden');
+    row.classList.add('open');
+    det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 async function openProdModal(enc) {
   const form = $('prodForm');
@@ -3699,7 +3743,7 @@ async function loadHistory(force = false) {
     renderHistory();
     return;
   }
-  tb.innerHTML = loadR(9);
+  tb.innerHTML = loadR(4);
   try {
     // Fetch ALL history (no filters server-side — filter on client for instant search)
     const res = await api('getUserHistory', {
@@ -3710,7 +3754,7 @@ async function loadHistory(force = false) {
     _HIST_CACHE = Array.isArray(res) ? res : (res?.history || []);
     renderHistory();
   } catch (e) {
-    tb.innerHTML = emptyR(9, '⚠️ ' + e.message);
+    tb.innerHTML = emptyR(4, '⚠️ ' + e.message);
   }
 }
 // Debounced filter — called from input.oninput
@@ -3742,7 +3786,7 @@ function renderHistory() {
       return true;
     });
   }
-  if (!list.length) { tb.innerHTML = emptyR(9, '📋 ไม่พบข้อมูล'); return; }
+  if (!list.length) { tb.innerHTML = emptyR(4, '📋 ไม่พบข้อมูล'); return; }
   const stMap = {
     Approved:  '<span class="badge bs">✅ อนุมัติ</span>',
     Rejected:  '<span class="badge bd">❌ ไม่อนุมัติ</span>',
@@ -3750,32 +3794,58 @@ function renderHistory() {
     Cancelled: '<span class="badge bn">🚫 ยกเลิก</span>',
   };
   const isAdmin = CU?.role === 'Admin';
-  tb.innerHTML = list.map(r => {
+  tb.innerHTML = list.map((r, i) => {
     const stBadge = stMap[r.status] || `<span class="badge bn">${esc(r.status)}</span>`;
-    const itemBadge = `<span class="badge bb txs">${esc(r.productName)} ×${r.qty} ${esc(r.unit || '')}</span>`;
     const rowNum = r.row || 0;
-    const isOwner = String(r.userId || '').trim() === String(CU?.id || '').trim();
+    const isOwner = CU && String(r.userId || '').trim() === String(CU?.id || '').trim();
     let canCancel = false;
-    if (r.status === 'Pending' && (isOwner || isAdmin)) canCancel = true;
-    else if (r.status === 'Approved' && isAdmin) canCancel = true;
-    const canEdit = isAdmin && (r.status === 'Pending' || r.status === 'Approved');
+    if (CU && r.status === 'Pending' && (isOwner || isAdmin)) canCancel = true;
+    else if (CU && r.status === 'Approved' && isAdmin) canCancel = true;
+    const canEdit = CU && isAdmin && (r.status === 'Pending' || r.status === 'Approved');
     const actionBtns = (canCancel || canEdit) ? `
-      <div class="act-btns" style="flex-wrap:nowrap">
-        ${canEdit ? `<button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','${esc(r.status)}')" title="แก้จำนวน">✏️</button>` : ''}
-        ${canCancel ? `<button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="cancelReq(${rowNum},'${esc(r.productName)}',${r.qty},'${esc(r.status)}')" title="ยกเลิก">🚫</button>` : ''}
-      </div>` : '<span class="muted txs">—</span>';
-    return `<tr>
-      <td data-label="รหัส"><span class="mono txs">${esc(r.reqId || '—')}</span></td>
-      <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
-      <td data-label="ผู้เบิก">${esc(r.userName || '—')}</td>
-      <td data-label="ฝ่าย"><span class="txs muted">${esc(r.department || '—')}</span></td>
-      <td data-label="รายการ">${itemBadge}</td>
-      <td data-label="รวม"><b>${r.qty || 0}</b></td>
-      <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
+      <div class="detail-actions">
+        ${canEdit ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editReqQty(${rowNum},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','${esc(r.status)}')">✏️ แก้จำนวน</button>` : ''}
+        ${canCancel ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="event.stopPropagation();cancelReq(${rowNum},'${esc(r.productName)}',${r.qty},'${esc(r.status)}')">🚫 ยกเลิก</button>` : ''}
+      </div>` : '';
+    const prodSummary = r.productName ? `${esc(r.productName)} ×${r.qty} ${esc(r.unit||'')}` : '—';
+    const detailId = `hd-${i}`;
+    const detailPanel = `<tr class="detail-row hidden" id="${detailId}"><td colspan="4">
+      <div class="detail-panel">
+        <div class="detail-grid">
+          <div class="detail-field"><span class="detail-label">รหัสคำขอ</span><span class="detail-value mono">${esc(r.reqId || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">วันที่</span><span class="detail-value">${esc(r.date || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">ผู้เบิก</span><span class="detail-value">${esc(r.userName || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">ฝ่าย</span><span class="detail-value">${esc(r.department || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">พัสดุ</span><span class="detail-value">${esc(r.productName || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">จำนวน</span><span class="detail-value"><b>${r.qty || 0}</b> ${esc(r.unit || '')}</span></div>
+          <div class="detail-field"><span class="detail-label">วัตถุประสงค์</span><span class="detail-value">${esc(r.purpose || '—')}</span></div>
+          <div class="detail-field"><span class="detail-label">สถานะ</span><span class="detail-value">${stBadge}</span></div>
+          ${r.note ? `<div class="detail-field" style="grid-column:1/-1"><span class="detail-label">หมายเหตุ</span><span class="detail-value">${esc(r.note)}</span></div>` : ''}
+        </div>
+        ${actionBtns}
+      </div>
+    </td></tr>`;
+    const summaryRow = `<tr class="exp-row" onclick="toggleHistDetail('${detailId}',this)">
+      <td data-label="วันที่/รหัส"><div class="txs">${esc(r.date || '—')}</div><div class="mono txs muted">${esc(r.reqId || '—')}</div></td>
+      <td data-label="ผู้เบิก"><div style="font-weight:600">${esc(r.userName || '—')}</div><div class="txs muted">${esc(r.department || '—')}</div></td>
+      <td data-label="รายการ"><span class="badge bb txs">${prodSummary}</span></td>
       <td data-label="สถานะ">${stBadge}</td>
-      <td data-label="จัดการ">${actionBtns}</td>
     </tr>`;
+    return summaryRow + detailPanel;
   }).join('');
+}
+function toggleHistDetail(detailId, row) {
+  const det = document.getElementById(detailId);
+  if (!det) return;
+  const isOpen = !det.classList.contains('hidden');
+  // close all others
+  document.querySelectorAll('.detail-row').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.dt tr.exp-row.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) {
+    det.classList.remove('hidden');
+    row.classList.add('open');
+    det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 // Helper: parse date strings like "28/04/2026 12:52" or ISO
 function _parseHistDate(s) {
