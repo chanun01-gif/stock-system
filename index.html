@@ -120,14 +120,27 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--te
 .pin-create-btn{width:100%;padding:13px;border:2px dashed rgba(212,160,23,.5);border-radius:11px;background:rgba(212,160,23,.07);color:var(--gold-l);font-family:'Noto Sans Thai',sans-serif;font-size:.93rem;font-weight:700;cursor:pointer;transition:all .18s;margin-top:5px}
 .pin-create-btn:hover{background:rgba(212,160,23,.15);border-color:var(--gold)}
 
+/* ═══ HOME HERO ═══ */
+.home-hero{background:linear-gradient(135deg,var(--ink-3) 0%,var(--ink-2) 50%,var(--ink) 100%);border-radius:var(--r-lg);padding:22px 24px;margin-bottom:18px;position:relative;overflow:hidden;box-shadow:0 6px 28px rgba(26,37,64,.22)}
+.home-hero-bg1{position:absolute;top:-50px;right:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(212,160,23,.18) 0%,transparent 70%);pointer-events:none}
+.home-hero-bg2{position:absolute;bottom:-70px;left:5%;width:200px;height:200px;background:radial-gradient(circle,rgba(44,95,232,.14) 0%,transparent 70%);pointer-events:none}
+.home-hero-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;z-index:1}
+.home-hero-left{display:flex;align-items:center;gap:14px}
+.home-hero-ava{width:52px;height:52px;border-radius:14px;background:var(--logo-bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:var(--ink);flex-shrink:0;box-shadow:0 4px 16px rgba(212,160,23,.38);overflow:hidden}
+.home-hero-title{font-size:1.18rem;font-weight:800;color:#fff;margin-bottom:4px;line-height:1.2}
+.home-hero-sub{font-size:.78rem;color:rgba(255,255,255,.5);line-height:1.45;max-width:340px}
+.home-hero-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-hero-ol{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.82);padding:8px 15px;border-radius:9px;font-family:'Noto Sans Thai',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
+.btn-hero-ol:hover{background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.32)}
+
 /* ═══ STATS ═══ */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px;margin-bottom:16px}
-.stat-c{background:var(--surface);border-radius:var(--r);padding:14px;border:1px solid var(--border);box-shadow:var(--shadow);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
-.stat-c:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px;margin-bottom:18px}
+.stat-c{background:var(--surface);border-radius:var(--r);padding:15px 15px 13px;border:1px solid var(--border);box-shadow:var(--shadow);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.stat-c:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .stat-ac{position:absolute;bottom:0;left:0;right:0;height:3px}
-.stat-icon{font-size:1.35rem;margin-bottom:5px;display:block}
-.stat-val{font-size:1.62rem;font-weight:800;color:var(--text);line-height:1;font-family:'IBM Plex Mono',monospace}
-.stat-lbl{font-size:.67rem;color:var(--muted);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.stat-ic-wrap{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:10px;flex-shrink:0}
+.stat-val{font-size:1.7rem;font-weight:800;color:var(--text);line-height:1;font-family:'IBM Plex Mono',monospace}
+.stat-lbl{font-size:.67rem;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 
 /* ═══ CARD ═══ */
 .card{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
@@ -571,7 +584,7 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
       </div>
     </div>
     <div class="pin-msg" id="pinMsg"></div>
-    <button onclick="hidePinOv()" style="margin-top:13px;background:none;border:none;color:rgba(255,255,255,.28);font-size:.76rem;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;padding:4px">← กลับหน้าหลัก</button>
+    <button onclick="hidePinOv()" class="btn btn-ghost" style="margin-top:13px;color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.18);width:100%;justify-content:center;font-family:'Noto Sans Thai',sans-serif">← กลับหน้าหลัก</button>
   </div>
 </div>
 
@@ -617,24 +630,60 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
 
     <!-- ══ HOME ══ -->
     <div class="section on" id="section-home">
-      <div class="page-hd">
-        <div><h1 id="welcomeTxt">ยินดีต้อนรับ</h1><p id="welcomeSub">ดูสต็อกพัสดุปัจจุบัน — กด "เบิกพัสดุ" เพื่อขอเบิก</p></div>
-        <div class="pg-act"><button class="btn btn-ghost btn-sm" onclick="refreshHome()">🔄 รีเฟรช</button>
-        <button class="btn btn-ghost btn-sm" onclick="showDebugPanel()" title="ทดสอบการเชื่อมต่อ GAS">🔌 ทดสอบ GAS</button>
+      <!-- Hero Banner -->
+      <div class="home-hero" id="homeHero">
+        <div class="home-hero-bg1"></div>
+        <div class="home-hero-bg2"></div>
+        <div class="home-hero-inner">
+          <div class="home-hero-left">
+            <div class="home-hero-ava" id="heroAva">📦</div>
+            <div>
+              <div class="home-hero-title" id="welcomeTxt">ยินดีต้อนรับ</div>
+              <div class="home-hero-sub" id="welcomeSub">ดูสต็อกพัสดุปัจจุบัน — กด "เบิกพัสดุ" เพื่อขอเบิก</div>
+            </div>
+          </div>
+          <div class="home-hero-acts">
+            <button class="btn btn-gold" id="heroLoginBtn" onclick="requirePin('request')">🔑 เข้าสู่ระบบ</button>
+            <button class="btn-hero-ol" id="heroReqBtn" onclick="nav('request')" style="display:none">🛒 เบิกพัสดุ</button>
+            <button class="btn-hero-ol" onclick="refreshHome()">🔄 รีเฟรช</button>
+            <button class="btn-hero-ol" onclick="showDebugPanel()" title="ทดสอบการเชื่อมต่อ GAS" style="opacity:.55;font-size:.75rem">🔌</button>
+          </div>
+        </div>
       </div>
-      </div>
-      <div id="guestBanner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:12px 16px;background:linear-gradient(135deg,rgba(212,160,23,.08),rgba(212,160,23,.03));border:1px solid rgba(212,160,23,.25);border-radius:12px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:12px"><span style="font-size:1.4rem">🛒</span>
-          <div><div style="font-weight:700;font-size:.9rem">ต้องการเบิกพัสดุ?</div><div style="font-size:.76rem;color:var(--muted)">เลือกชื่อและใส่ PIN เพื่อยืนยันตัวตน</div></div></div>
-        <button class="btn btn-gold" onclick="requirePin('request')">🔑 เข้าสู่ระบบ / เบิกพัสดุ</button>
-      </div>
-      <!-- Stats -->
+      <!-- Inline guest banner (shown inside hero only when needed as fallback) -->
+      <div id="guestBanner" style="display:none"></div>
+      <!-- Stats Grid -->
       <div class="stats-grid">
-        <div class="stat-c"><div class="stat-ac" style="background:var(--blue)"></div><span class="stat-icon">📦</span><div class="stat-val" id="s1">—</div><div class="stat-lbl">ชนิดพัสดุ</div></div>
-        <div class="stat-c"><div class="stat-ac" style="background:var(--red)"></div><span class="stat-icon">⚠️</span><div class="stat-val" id="s2">—</div><div class="stat-lbl">ใกล้หมด</div></div>
-        <div class="stat-c"><div class="stat-ac" style="background:var(--orange)"></div><span class="stat-icon">⏳</span><div class="stat-val" id="s3">—</div><div class="stat-lbl">รออนุมัติ</div></div>
-        <div class="stat-c"><div class="stat-ac" style="background:var(--green)"></div><span class="stat-icon">🛒</span><div class="stat-val" id="s4">—</div><div class="stat-lbl">เบิกวันนี้</div></div>
-        <div class="stat-c admin-only" style="display:none"><div class="stat-ac" style="background:var(--teal)"></div><span class="stat-icon">💰</span><div class="stat-val mono" id="s5" style="font-size:1.28rem">—</div><div class="stat-lbl">มูลค่าสต็อก</div></div>
+        <div class="stat-c" onclick="nav('products')" style="cursor:pointer">
+          <div class="stat-ic-wrap" style="background:rgba(44,95,232,.1)">📦</div>
+          <div class="stat-val" id="s1">—</div>
+          <div class="stat-lbl">ชนิดพัสดุ</div>
+          <div class="stat-ac" style="background:var(--blue)"></div>
+        </div>
+        <div class="stat-c" onclick="nav('products')" style="cursor:pointer">
+          <div class="stat-ic-wrap" style="background:rgba(217,64,64,.1)">⚠️</div>
+          <div class="stat-val" id="s2">—</div>
+          <div class="stat-lbl">ใกล้หมด</div>
+          <div class="stat-ac" style="background:var(--red)"></div>
+        </div>
+        <div class="stat-c">
+          <div class="stat-ic-wrap" style="background:rgba(224,128,32,.1)">⏳</div>
+          <div class="stat-val" id="s3">—</div>
+          <div class="stat-lbl">รออนุมัติ</div>
+          <div class="stat-ac" style="background:var(--orange)"></div>
+        </div>
+        <div class="stat-c">
+          <div class="stat-ic-wrap" style="background:rgba(31,166,114,.1)">🛒</div>
+          <div class="stat-val" id="s4">—</div>
+          <div class="stat-lbl">เบิกวันนี้</div>
+          <div class="stat-ac" style="background:var(--green)"></div>
+        </div>
+        <div class="stat-c admin-only" style="display:none">
+          <div class="stat-ic-wrap" style="background:rgba(14,144,128,.1)">💰</div>
+          <div class="stat-val mono" id="s5" style="font-size:1.28rem">—</div>
+          <div class="stat-lbl">มูลค่าสต็อก</div>
+          <div class="stat-ac" style="background:var(--teal)"></div>
+        </div>
       </div>
       <!-- Stock table -->
       <div class="card mb-3">
@@ -651,8 +700,8 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
           <tbody id="pubTb"></tbody>
         </table></div>
       </div>
-      <!-- Admin widgets (hidden for guest) -->
-      <div class="f2" style="gap:14px" id="adminWidgets" style="display:none">
+      <!-- Admin widgets -->
+      <div class="f2" style="gap:14px" id="adminWidgets">
         <div class="card admin-only" style="display:none">
           <div class="card-hd"><h2 class="card-ttl">🚨 สต็อกวิกฤต</h2></div>
           <div class="tw"><table class="dt"><thead><tr><th>รหัส</th><th>ชื่อ</th><th>คงเหลือ</th><th>Min</th></tr></thead><tbody id="lowTb"></tbody></table></div>
@@ -742,7 +791,7 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
     <!-- ══ APPROVALS ══ -->
     <div class="section" id="section-approvals">
       <div class="page-hd">
-        <div><h1>✅ อนุมัติการเบิก</h1><p>รายการรอการพิจารณา</p></div>
+        <div><h1>✅ อนุมัติการเบิก</h1><p>รายการคำขอเบิกพัสดุ</p></div>
         <div class="pg-act">
           <div style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
             <span style="font-size:.73rem;font-weight:600;color:var(--muted)">Auto-approve</span>
@@ -752,6 +801,11 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
           </div>
           <button class="btn btn-ghost btn-sm" onclick="loadRequests()">🔄</button>
         </div>
+      </div>
+      <div class="stab-wrap" style="margin-bottom:12px">
+        <button class="stab on" id="apvTab-Pending" onclick="switchApvTab('Pending')">⏳ รอดำเนินการ</button>
+        <button class="stab" id="apvTab-Approved" onclick="switchApvTab('Approved')">✅ อนุมัติแล้ว</button>
+        <button class="stab" id="apvTab-Rejected" onclick="switchApvTab('Rejected')">❌ ปฏิเสธแล้ว</button>
       </div>
       <div id="apvBar" class="info-box info-blue" style="display:none"><span id="apvBarTxt"></span></div>
       <div class="card mb-3" id="bulkBar" style="display:none">
@@ -949,7 +1003,10 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
             <div style="padding:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
               <div style="font-weight:700;margin-bottom:3px">📂 Import พัสดุจาก CSV</div>
               <div style="font-size:.77rem;color:var(--muted);margin-bottom:3px">คอลัมน์: <span class="mono txs">name*, barcode, category, unit*, price, minStock, initialStock</span></div>
-              <div style="font-size:.72rem;color:var(--muted);margin-bottom:9px">* จำเป็น | UTF-8 หรือ UTF-8 BOM | header แถวแรก</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">
+                <span style="font-size:.72rem;color:var(--muted)">* จำเป็น | UTF-8 หรือ UTF-8 BOM | header แถวแรก</span>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="downloadCSVTemplate()" title="ดาวน์โหลดไฟล์ตัวอย่าง">📄 ไฟล์ตัวอย่าง</button>
+              </div>
               <input type="file" class="fc" id="importFile" accept=".csv,.txt" onchange="previewImport(this)">
               <div id="importFeedback" style="margin-top:9px;display:none">
                 <div id="importStatus"></div>
@@ -1123,6 +1180,20 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
       <button type="submit" class="btn btn-navy">💾 บันทึก</button>
     </div>
   </form></div>
+</div></div></div>
+
+<!-- Stock Log Modal -->
+<div class="modal fade" id="stockLogModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header">
+    <h5 class="modal-title">📋 ประวัติความเคลื่อนไหวสต็อก — <span id="slProdName" style="color:var(--muted);font-weight:400"></span></h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body" style="padding:0">
+    <div class="tw"><table class="dt dt-r">
+      <thead><tr><th>วันที่</th><th>ประเภท</th><th>จำนวน</th><th>สต็อกหลัง</th><th>อ้างอิง</th><th>โดย</th></tr></thead>
+      <tbody id="slTb"></tbody>
+    </table></div>
+  </div>
 </div></div></div>
 
 <!-- Inbound Modal -->
@@ -1327,11 +1398,23 @@ let _CACHE = {};        // Performance cache
 let _PIN_INPUT = '';    // PIN entry buffer
 let _PIN_TARGET = null; // Section to nav after PIN
 let _PIN_CB = null;     // Callback after PIN
+let _PIN_FAILS = 0;     // Failed PIN attempts per user session
+let _PIN_LOCKED_UNTIL = 0; // Timestamp when lockout expires
+let _adminInterval = null; // Auto-refresh interval for admin pending badge
 let _SCAN_CTX = null;   // Camera context
 let _CAM_STREAM = null;
 let _SCAN_INT = null;
 let _BC_TIMER = null;   // Barcode debounce
 let _CHARTS = {};       // Chart.js instances
+
+// ─── CART HELPERS ─────────────────────────────────────────
+const _cartQty = () => CART.reduce((s, c) => s + c.qty, 0);
+function _syncCartBadge() {
+  const total = _cartQty();
+  $('cartCnt').textContent = total || '0';
+  const fab = $('cartFab');
+  if (fab) fab.classList.toggle('cart-hide', !CU || total === 0);
+}
 
 // ─── CACHE ────────────────────────────────────────────────
 const gc = k => { const c = _CACHE[k]; return c && Date.now() - c.ts < CACHE_TTL ? c.data : null; };
@@ -1582,6 +1665,10 @@ function showErr(msg) {
 (function setupAriaFix() {
   document.addEventListener('shown.bs.modal', stripAriaHidden);
   document.addEventListener('hidden.bs.modal', () => setTimeout(stripAriaHidden, 50));
+  // Close PIN overlay with Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('pinOv')?.classList.contains('show')) hidePinOv();
+  });
 })();
 
 // ─── LOGO SYSTEM ──────────────────────────────────────────
@@ -1987,10 +2074,28 @@ function _fillSettingsForm(s) {
   } catch(e) { console.warn('_fillSettingsForm:', e); }
 }
 
+// ─── SESSION PERSISTENCE ──────────────────────────────────
+function _saveSession(user) {
+  try { sessionStorage.setItem('ims-user', JSON.stringify(user)); } catch {}
+}
+function _clearSession() {
+  try { sessionStorage.removeItem('ims-user'); } catch {}
+}
+function _restoreSession() {
+  try {
+    const raw = sessionStorage.getItem('ims-user');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
 // ─── INIT ─────────────────────────────────────────────────
 (async function init() {
   applyTheme();
   startClock();
+  // Restore login session from previous page load
+  const savedUser = _restoreSession();
+  if (savedUser) { CU = savedUser; }
   try {
     setPLtxt('กำลังเชื่อมต่อ GAS...');
     // Try ping first (lightest call, fastest fail signal)
@@ -2010,10 +2115,13 @@ function _fillSettingsForm(s) {
     setPLtxt('กำลังโหลดข้อมูลพัสดุ...');
     await loadPubStock();
     hidePL();
+    // Restore session UI after page load
+    if (CU) afterLogin();
   } catch (e) {
     console.error('Init error:', e);
     hidePL();
     _showConnectError(e.message);
+    if (CU) afterLogin();
   }
 })();
 
@@ -2079,7 +2187,7 @@ function nav(id) {
   if (id === 'home') { loadDashboard(); }
   else if (id === 'products') loadProducts();
   else if (id === 'inbound') { loadLots(); }
-  else if (id === 'approvals') loadRequests();
+  else if (id === 'approvals') { _apvStatus = 'Pending'; switchApvTab('Pending'); }
   else if (id === 'users') loadUsers();
   else if (id === 'settings') { loadSettingsPage(); switchStab(0); }
   else if (id === 'history') loadHistory();
@@ -2143,7 +2251,7 @@ function onUserSel() {
   $('pinCreateWrap').style.display = 'none';
   $('pinNewForm').style.display = 'none';
   setMsg('');
-  _PIN_INPUT = '';
+  _PIN_INPUT = ''; _PIN_FAILS = 0; _PIN_LOCKED_UNTIL = 0;
   updatePinDots();
   if (!sel.value) return;
   if (opt.dataset.hasPin === 'true' || opt.dataset.hasPin === true) {
@@ -2183,6 +2291,12 @@ function updatePinDots() {
 async function submitPin() {
   const uid = $('pinSel').value;
   if (!uid) { setMsg('กรุณาเลือกชื่อ', 'err'); return; }
+  // Lockout check
+  if (_PIN_LOCKED_UNTIL > Date.now()) {
+    const sec = Math.ceil((_PIN_LOCKED_UNTIL - Date.now()) / 1000);
+    setMsg(`🔒 ถูกล็อค กรุณารอ ${sec} วินาที`, 'err');
+    _PIN_INPUT = ''; updatePinDots(); return;
+  }
   if (!_PIN_INPUT || _PIN_INPUT.length < 4) {
     setMsg('PIN ต้องมีอย่างน้อย 4 หลัก', 'err');
     return;
@@ -2192,12 +2306,22 @@ async function submitPin() {
     const res = await api('verifyPin', { userId: uid, pin: _PIN_INPUT });
     if (res.success) {
       CU = res.user;
+      _saveSession(CU);
+      _PIN_FAILS = 0;
       hidePinOv();
       afterLogin();
       if (_PIN_CB) { _PIN_CB(CU); _PIN_CB = null; }
       else if (_PIN_TARGET) nav(_PIN_TARGET);
     } else {
-      setMsg(res.message || 'PIN ไม่ถูกต้อง', 'err');
+      _PIN_FAILS++;
+      const remaining = 5 - _PIN_FAILS;
+      if (_PIN_FAILS >= 5) {
+        _PIN_LOCKED_UNTIL = Date.now() + 30000;
+        _PIN_FAILS = 0;
+        setMsg('🔒 ผิดเกิน 5 ครั้ง — ล็อค 30 วินาที', 'err');
+      } else {
+        setMsg(`${res.message || 'PIN ไม่ถูกต้อง'} (เหลือ ${remaining} ครั้ง)`, 'err');
+      }
       $('pinDots').animate([{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(0)' }], { duration: 400 });
       _PIN_INPUT = ''; updatePinDots();
     }
@@ -2239,9 +2363,12 @@ function afterLogin() {
   if (!CU) return;
   const isAdmin = CU.role === 'Admin';
   const nameChar = (CU.name || '?')[0];
-  // Welcome text
+  // Welcome text + hero
   const wt = $('welcomeTxt'); if (wt) wt.textContent = `สวัสดี, ${CU.name}`;
   const ws = $('welcomeSub'); if (ws) ws.textContent = isAdmin ? 'จัดการระบบพัสดุ — เลือกเมนูด้านซ้าย' : 'เบิกพัสดุผ่านเมนู "เบิกพัสดุ" หรือตะกร้าด้านล่าง';
+  const ha = $('heroAva'); if (ha) { ha.textContent = nameChar; ha.style.fontSize = '1.2rem'; }
+  const hlogin = $('heroLoginBtn'); if (hlogin) hlogin.style.display = 'none';
+  const hreq = $('heroReqBtn'); if (hreq) hreq.style.display = '';
   // Topbar avatar
   const ava = $('topAva');
   ava.textContent = nameChar; ava.style.display = 'flex';
@@ -2261,6 +2388,19 @@ function afterLogin() {
   document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
   // Reload dashboard stats
   loadDashboard();
+  // Admin: auto-refresh pending badge every 60s
+  if (_adminInterval) clearInterval(_adminInterval);
+  if (isAdmin) {
+    _adminInterval = setInterval(async () => {
+      if (!CU || CU.role !== 'Admin') { clearInterval(_adminInterval); _adminInterval = null; return; }
+      const res = await api('getDashboardStats').catch(() => null);
+      if (!res) return;
+      const pc = Number(res.pendingCount || 0);
+      const badge = $('pendingBadge');
+      if (badge) { badge.style.display = pc > 0 ? '' : 'none'; badge.textContent = pc; }
+      if ($('s3')) $('s3').textContent = pc;
+    }, 60000);
+  }
 }
 function buildNav(isAdmin) {
   let html = `<div class="nav-sec">เมนู</div>
@@ -2297,6 +2437,8 @@ function logout() {
   }).then(r => {
     if (!r.isConfirmed) return;
     CU = null; CART = []; _allUsers = []; _HIST_CACHE = null;
+    _clearSession();
+    if (_adminInterval) { clearInterval(_adminInterval); _adminInterval = null; }
     cc('products', 'settings');
     // Reset UI
     $('topAva').style.display = 'none';
@@ -2305,11 +2447,12 @@ function logout() {
     $('sbGuestBox').style.display = '';
     $('logoutBtn').style.display = 'none';
     $('loginSideBtn').style.display = '';
-    $('guestBanner').style.display = 'flex';
-    $('cartFab').classList.add('cart-hide');
-    $('cartCnt').textContent = '0';
+    _syncCartBadge();
     $('welcomeTxt').textContent = 'ยินดีต้อนรับ';
     $('welcomeSub').textContent = 'ดูสต็อกพัสดุปัจจุบัน — กด "เบิกพัสดุ" เพื่อขอเบิก';
+    const ha = $('heroAva'); if (ha) { ha.textContent = '📦'; ha.style.fontSize = '1.5rem'; }
+    const hlogin = $('heroLoginBtn'); if (hlogin) hlogin.style.display = '';
+    const hreq = $('heroReqBtn'); if (hreq) hreq.style.display = 'none';
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
     $('sbNav').innerHTML = `<div class="nav-sec">เมนู</div>
       <button class="nav-btn on" data-s="home" onclick="nav('home')"><span class="nav-icon">🏠</span>หน้าหลัก / สต็อก</button>
@@ -2387,8 +2530,13 @@ function fillPubCatFilter(list) {
 function renderPubStock(list) {
   const tb = $('pubTb');
   if (!tb) return;
-  const q = $('pubSearch')?.value?.toLowerCase() || '';
+  const q = ($('pubSearch')?.value || '').trim().toLowerCase();
   const cat = $('pubCatF')?.value || '';
+  // Highlight helper: wraps matched substring in <mark>
+  const hl = s => {
+    if (!q) return esc(s);
+    return esc(s).replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>');
+  };
   // Accept Active, Approved, or empty status (GAS default setup uses 'Active')
   const active = list.filter(p => {
     const s = String(p.status || 'Active');
@@ -2407,8 +2555,8 @@ function renderPubStock(list) {
     const cl = st === 0 ? 's-low' : st <= mn ? 's-warn' : 's-ok';
     const ico = st === 0 ? '🔴' : st <= mn ? '🟡' : '🟢';
     return `<tr>
-      <td data-label="รหัส"><span class="mono txs">${esc(p.id)}</span></td>
-      <td data-label="ชื่อพัสดุ"><b>${esc(p.name)}</b></td>
+      <td data-label="รหัส"><span class="mono txs">${hl(p.id)}</span></td>
+      <td data-label="ชื่อพัสดุ"><b>${hl(p.name)}</b></td>
       <td data-label="หมวดหมู่"><span class="badge bn">${esc(p.category || '—')}</span></td>
       <td data-label="คงเหลือ"><span class="${cl}">${ico} <b>${st}</b></span></td>
       <td data-label="หน่วย">${esc(p.unit || '—')}</td>
@@ -2559,6 +2707,7 @@ function renderProdTable(list) {
       <td data-label="จัดการ">
         <div class="act-btns">
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openBcModal('${encP(p)}')" title="Barcode">📊</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openStockLog('${esc(p.id)}','${esc(p.name)}')" title="ประวัติสต็อก">📋</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openAdj('${esc(p.id)}','${esc(p.name)}',${st},'${esc(p.unit)}')" title="ปรับสต็อก">⚖️</button>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="openProdModal('${encP(p)}')" title="แก้ไข">✏️</button>
           <button class="btn btn-ghost btn-icon btn-sm" style="color:var(--red)" onclick="delProd(${p.row},'${esc(p.name)}')" title="ลบ">🗑️</button>
@@ -2654,6 +2803,31 @@ async function delProd(row, name) {
     if (res.success) { cc('products'); showOk(res.message); loadProducts(); }
     else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
+}
+async function openStockLog(productId, productName) {
+  const slName = $('slProdName');
+  const slTb   = $('slTb');
+  if (slName) slName.textContent = productName;
+  if (slTb) slTb.innerHTML = loadR(6);
+  bootstrap.Modal.getOrCreateInstance($('stockLogModal')).show();
+  try {
+    const logs = await api('getStockLogs', { productId, limit: 100 });
+    if (!Array.isArray(logs) || !logs.length) { slTb.innerHTML = emptyR(6, 'ยังไม่มีประวัติการเคลื่อนไหว'); return; }
+    const typeLabel = { INBOUND:'รับเข้า', WITHDRAW:'เบิก', APPROVE:'อนุมัติ', CANCEL_RESTORE:'ยกเลิก-คืน', ADJUST:'ปรับ', EDIT_REQ:'แก้ไขคำขอ', SETUP:'ตั้งต้น' };
+    const typeClass = { INBOUND:'bs', WITHDRAW:'bd', APPROVE:'bs', CANCEL_RESTORE:'bn', ADJUST:'bw', EDIT_REQ:'bw', SETUP:'bn' };
+    slTb.innerHTML = logs.map(l => {
+      const diff = Number(l.diffQty || 0);
+      const diffStr = diff > 0 ? `<span style="color:var(--green)">+${diff}</span>` : `<span style="color:var(--red)">${diff}</span>`;
+      return `<tr>
+        <td data-label="วันที่"><span class="mono txs">${esc(l.date||'—')}</span></td>
+        <td data-label="ประเภท"><span class="badge ${typeClass[l.type]||'bn'}">${typeLabel[l.type]||esc(l.type)}</span></td>
+        <td data-label="จำนวน">${diffStr}</td>
+        <td data-label="สต็อกหลัง"><span class="mono fw8">${Number(l.newStock||0)}</span></td>
+        <td data-label="อ้างอิง"><span class="txs muted">${esc(l.reference||'—')}</span></td>
+        <td data-label="โดย"><span class="txs">${esc(l.actionBy||'—')}</span></td>
+      </tr>`;
+    }).join('');
+  } catch (e) { if (slTb) slTb.innerHTML = emptyR(6, '❌ โหลดข้อมูลไม่ได้'); }
 }
 function openAdj(id, name, stock, unit) {
   $('adjId').value = id;
@@ -2762,20 +2936,34 @@ async function handleInbound(e) {
 }
 
 // ─── APPROVALS ────────────────────────────────────────────
+let _apvStatus = 'Pending';
+function switchApvTab(status) {
+  _apvStatus = status;
+  ['Pending','Approved','Rejected'].forEach(s => {
+    const btn = $('apvTab-' + s);
+    if (btn) btn.classList.toggle('on', s === status);
+  });
+  const bulkBar = $('bulkBar');
+  if (bulkBar) bulkBar.style.display = status === 'Pending' ? '' : 'none';
+  loadRequests();
+}
 async function loadRequests() {
   const tb = $('apvTb');
   if (!tb) return;
   tb.innerHTML = loadR(7);
   const settings = gc('settings') || {};
   _setApvState(settings.requireApproval === 'true' || settings.requireApproval === true);
+  const status = _apvStatus || 'Pending';
   try {
-    const res = await api('getRequests', { statusFilter: 'Pending' });
+    const res = await api('getRequests', { statusFilter: status });
     const list = Array.isArray(res) ? res : (res?.requests || []);
-    if (!list.length) { tb.innerHTML = emptyR(7, '✅ ไม่มีรายการรออนุมัติ'); return; }
+    if (!list.length) { tb.innerHTML = emptyR(7, status === 'Pending' ? '✅ ไม่มีรายการรออนุมัติ' : 'ไม่มีรายการ'); return; }
+    const isPending = status === 'Pending';
     tb.innerHTML = list.map(r => {
       const itemBadge = `<span class="badge bb">${esc(r.productName)} <b>×${r.qty}</b> ${esc(r.unit || '')}</span>`;
+      const statusBadge = r.status === 'Approved' ? '<span class="badge bs">อนุมัติ</span>' : r.status === 'Rejected' ? '<span class="badge bd">ปฏิเสธ</span>' : '<span class="badge bw">รอ</span>';
       return `<tr>
-        <td data-label="เลือก"><input type="checkbox" class="bcb" value="${r.row}" onchange="updateBulkBar()"></td>
+        <td data-label="เลือก">${isPending ? `<input type="checkbox" class="bcb" value="${r.row}" onchange="updateBulkBar()">` : statusBadge}</td>
         <td data-label="รหัส"><span class="mono txs">${esc(r.reqId)}</span></td>
         <td data-label="วันที่"><span class="txs">${esc(r.date || '—')}</span></td>
         <td data-label="ผู้เบิก/ฝ่าย"><div style="font-weight:600">${esc(r.userName)}</div><div class="txs muted">${esc(r.department || '—')}</div></td>
@@ -2783,9 +2971,11 @@ async function loadRequests() {
         <td data-label="วัตถุประสงค์"><span class="txs">${esc(r.purpose || '—')}</span></td>
         <td data-label="จัดการ">
           <div class="act-btns" style="flex-wrap:wrap">
+            ${isPending ? `
             <button class="btn btn-success btn-sm" onclick="quickApv(${r.row},'Approved')" title="อนุมัติ">✅</button>
             <button class="btn btn-ghost btn-icon btn-sm" onclick="editReqQty(${r.row},${r.qty},'${esc(r.productName)}','${esc(r.unit||'')}','Pending')" title="แก้จำนวน">✏️</button>
             <button class="btn btn-danger btn-sm" onclick="quickApv(${r.row},'Rejected')" title="ปฏิเสธ">❌</button>
+            ` : `<span class="txs muted">${esc(r.approvedBy || '—')}</span>`}
           </div>
         </td>
       </tr>`;
@@ -2935,8 +3125,7 @@ async function loadProdReq(force = false) {
   fillPubCatFilter(list);
   renderProdGrid(list);
   // Always show cart FAB on request page (with item count)
-  $('cartFab').classList.remove('cart-hide');
-  $('cartCnt').textContent = CART.length;
+  _syncCartBadge();
 }
 function renderProdGrid(list) {
   const grid = $('prodGrid');
@@ -2978,7 +3167,9 @@ function renderProdGrid(list) {
         <div class="prod-stock ${cl}" style="margin-bottom:7px">${stockLabel}</div>
         ${isOos || available === 0
           ? `<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;opacity:.45;cursor:not-allowed" disabled>🚫 เบิกไม่ได้</button>`
-          : `<button class="btn btn-gold btn-sm" style="width:100%;justify-content:center" onclick="addToCart('${esc(p.id)}','${esc(p.name)}',${effectiveMax},'${esc(p.unit || '')}')">🛒 ใส่ตะกร้า</button>`
+          : CU
+            ? `<button class="btn btn-gold btn-sm" style="width:100%;justify-content:center" onclick="addToCart('${esc(p.id)}','${esc(p.name)}',${effectiveMax},'${esc(p.unit || '')}')">🛒 ใส่ตะกร้า</button>`
+            : `<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;color:var(--gold);border-color:rgba(212,160,23,.35)" onclick="requirePin('request')">🔑 Login เพื่อเบิก</button>`
         }
       </div>
     </div>`;
@@ -2991,6 +3182,7 @@ function filterProdGrid() {
 // ─── QTY PICKER MODAL (Bootstrap — always centered, no Swal) ──
 let _qtyTarget = null; // { id, name, maxStock, unit }
 function addToCart(id, name, maxStock, unit) {
+  if (!CU) { requirePin('request'); return; }
   _qtyTarget = { id, name, maxStock: Number(maxStock), unit };
   // Fill modal
   const inp = $('qtyInput');
@@ -3035,27 +3227,29 @@ function qtyConfirm() {
   } else {
     CART.push({ productId: id, productName: name, qty: q, maxStock, unit });
   }
-  $('cartCnt').textContent = CART.length;
-  $('cartFab').classList.remove('cart-hide');
+  _syncCartBadge();
   _qtyTarget = null;
   // Re-render grid to show updated remaining stock
   filterProdGrid();
-  // Toast — clear, prominent feedback
+  // Popup with "ดูตะกร้า" shortcut
   _swalpre();
   Swal.fire({
     icon: 'success',
-    title: `+${q} ${unit}`,
-    text: name,
-    timer: 1400, timerProgressBar: true,
-    showConfirmButton: false, toast: true, position: 'top-end',
+    title: '✅ เพิ่มในตะกร้าแล้ว',
+    html: `<b>${esc(name)}</b><br><span style="font-size:.84rem;color:var(--muted)">+${q} ${unit} · รวมในตะกร้า ${_cartQty()} ชิ้น</span>`,
+    timer: 2000, timerProgressBar: true,
+    showConfirmButton: true,
+    confirmButtonText: '🛒 ดูตะกร้า',
+    confirmButtonColor: '#d4a017',
     didOpen: stripAriaHidden,
-  });
+  }).then(r => { if (r.isConfirmed) openCartModal(); });
 }
 function openCartModal() { renderCartTb(); bootstrap.Modal.getOrCreateInstance($('cartModal')).show(); }
 function renderCartTb() {
   const tb = $('cartTb');
   const cc = $('cartCount');
-  if (cc) cc.textContent = CART.length ? `(${CART.length} รายการ)` : '';
+  const totalQty = _cartQty();
+  if (cc) cc.textContent = CART.length ? `(${CART.length} ชนิด · ${totalQty} ชิ้น)` : '';
   if (!CART.length) {
     tb.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--muted)">ตะกร้าว่างเปล่า — กลับไปเลือกพัสดุ</td></tr>`;
     return;
@@ -3108,8 +3302,7 @@ function cartQtySet(i, val) {
 }
 function removeCart(i) {
   CART.splice(i, 1);
-  $('cartCnt').textContent = CART.length || '0';
-  if (!CART.length) $('cartFab').classList.add('cart-hide');
+  _syncCartBadge();
   renderCartTb();
   filterProdGrid(); // refresh available stock
 }
@@ -3120,8 +3313,7 @@ function clearCart() {
     .then(r => {
       if (!r.isConfirmed) return;
       CART = [];
-      $('cartCnt').textContent = '0';
-      $('cartFab').classList.add('cart-hide');
+      _syncCartBadge();
       bootstrap.Modal.getOrCreateInstance($('cartModal')).hide();
       filterProdGrid();
     });
@@ -3158,8 +3350,7 @@ async function submitCart() {
     if (res?.success) {
       // Confirm: clear cart and form
       CART = [];
-      $('cartCnt').textContent = '0';
-      $('cartFab').classList.add('cart-hide');
+      _syncCartBadge();
       $('cartPurpose').value = '';
       $('cartNote').value = '';
       _HIST_CACHE = null; // user has new history entries
@@ -3186,12 +3377,6 @@ async function submitCart() {
 }
 
 // ─── HISTORY ──────────────────────────────────────────────
-function resetHistFilter() {
-  ['hUser', 'hProd'].forEach(id => { const el = $(id); if (el) el.value = ''; });
-  $('hPeriod').value = '';
-  $('hStatus').value = 'all';
-  loadHistory();
-}
 // History caching — fetch once, filter client-side
 let _HIST_CACHE = null;
 let _HIST_TIMER = null;
@@ -3699,6 +3884,18 @@ async function doRebuild() {
     else showErr(res.message);
   } catch (e) { Swal.close(); showErr(e.message); }
 }
+function downloadCSVTemplate() {
+  const csv = '﻿' + [
+    'name,barcode,category,unit,price,minStock,initialStock',
+    'กระดาษ A4 80g,8850999123456,เครื่องเขียน,รีม,120,5,20',
+    'ปากกาลูกลื่น,,เครื่องเขียน,กล่อง,35,3,10',
+    'หมึกเครื่องพิมพ์ Canon,,อุปกรณ์ IT,ตลับ,890,2,5',
+  ].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = 'import_template.csv';
+  a.click();
+}
 async function exportCSV() {
   showLoading('กำลังโหลดข้อมูล...');
   try {
@@ -3996,7 +4193,7 @@ function _findProd(code, all) {
     <button class="bot-btn on" id="bb-home" onclick="nav('home')">
       <span class="bi">🏠</span><span>หน้าหลัก</span>
     </button>
-    <button class="bot-btn" id="bb-request" onclick="nav('request')">
+    <button class="bot-btn" id="bb-request" onclick="CU ? nav('request') : requirePin('request')">
       <span class="bi">🛒</span><span>เบิกพัสดุ</span>
     </button>
     <button class="bot-btn" id="bb-history" onclick="nav('history')">
