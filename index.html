@@ -531,9 +531,120 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
 }
 @media(max-width:360px){.prod-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr}}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+/* ═══ VISUAL MODERNIZATION ═══ */
+:root{
+  --r:14px;--r-lg:20px;
+  --shadow:0 2px 12px rgba(26,37,64,.08);--shadow-md:0 8px 32px rgba(26,37,64,.15);
+}
+.card{border-radius:18px;border-color:var(--border)}
+.card-hd{padding:13px 20px;background:var(--surface)}
+.stat-c{padding:20px 18px 16px;border-radius:16px}
+.stat-val{font-size:1.9rem}
+.stat-ic-wrap{width:44px;height:44px;border-radius:13px;font-size:1.3rem;margin-bottom:11px}
+.home-hero{border-radius:22px;padding:24px 26px 22px}
+.btn-gold:hover{box-shadow:0 6px 20px rgba(212,160,23,.4)}
+.btn-primary:hover{box-shadow:0 6px 20px rgba(44,95,232,.35)}
+.btn-success:hover{box-shadow:0 6px 20px rgba(31,166,114,.35)}
+.btn-danger:hover{box-shadow:0 6px 20px rgba(217,64,64,.3)}
+.btn{border-radius:10px}
+.btn-sm{border-radius:8px}
+.modal-content{border-radius:20px!important}
+.dt tbody tr{transition:background .12s}
+.dt tbody tr:hover{background:rgba(44,95,232,.03)}
+.empty{padding:52px 24px;display:flex;flex-direction:column;align-items:center}
+.empty-icon{font-size:3rem;margin-bottom:12px;opacity:.6}
+@media(min-width:769px){.page-c{padding:24px 26px}}
+
+/* ═══ SKELETON LOADING ═══ */
+@keyframes shimmer{0%{background-position:-400% 0}100%{background-position:400% 0}}
+.skel{background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);background-size:400% 100%;animation:shimmer 1.8s ease infinite;border-radius:8px;color:transparent!important;pointer-events:none;display:block}
+.skel-val{height:2.2rem;width:56%}
+.skel-lbl{height:.65rem;width:78%;margin-top:8px}
+
+/* ═══ TOAST NOTIFICATIONS ═══ */
+#toastStack{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9500;display:flex;flex-direction:column-reverse;gap:8px;align-items:center;pointer-events:none;width:min(380px,calc(100vw - 24px))}
+@media(min-width:769px){#toastStack{bottom:28px;right:24px;left:auto;transform:none;align-items:flex-end}}
+.toast-item{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px;box-shadow:0 8px 32px rgba(0,0,0,.18);font-size:.85rem;display:flex;align-items:center;gap:10px;pointer-events:auto;overflow:hidden;animation:toastIn .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes toastIn{from{opacity:0;transform:translateY(20px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+.toast-item.out{animation:toastOut .25s ease forwards}
+@keyframes toastOut{to{opacity:0;transform:translateY(12px) scale(.94)}}
+.toast-ok{border-left:4px solid var(--green)}.toast-err{border-left:4px solid var(--red)}.toast-info{border-left:4px solid var(--blue)}
+.toast-ic{font-size:1.15rem;flex-shrink:0}.toast-msg{flex:1;color:var(--text);font-weight:600;line-height:1.4}
+.toast-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:0 2px;flex-shrink:0;opacity:.55;line-height:1}.toast-close:hover{opacity:1}
+body.dark .toast-item{background:var(--surface-2);border-color:var(--border)}
+
+/* ═══ PULSE BADGE ═══ */
+@keyframes pulseBadge{0%,100%{box-shadow:0 0 0 0 rgba(217,64,64,.55)}70%{box-shadow:0 0 0 8px rgba(217,64,64,0)}}
+.nav-badge.pulse{animation:pulseBadge 1.8s ease-out infinite}
+
+/* ═══ STICKY TABLE HEADERS ═══ */
+.dt thead th{position:sticky;top:0;z-index:4;background:var(--surface-2)}
+body.dark .dt thead th{background:var(--bg-2)!important}
+
+/* ═══ QUICK FILTER CHIPS ═══ */
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .17s;white-space:nowrap;font-family:'Noto Sans Thai',sans-serif;-webkit-tap-highlight-color:transparent}
+.chip:hover{border-color:rgba(44,95,232,.4);color:var(--blue);background:rgba(44,95,232,.05)}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 3px 10px rgba(44,95,232,.3)}
+.chip.chip-red.on{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 3px 10px rgba(217,64,64,.3)}
+.chip.chip-orange.on{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:0 3px 10px rgba(224,128,32,.3)}
+.chip.chip-gray.on{background:#666;border-color:#666;color:#fff}
+body.dark .chip{background:var(--surface-2);border-color:var(--border)}
+body.dark .chip:hover{border-color:rgba(128,168,255,.4);color:#80a8ff;background:rgba(44,95,232,.08)}
+
+/* ═══ RECENT ACTIVITY ═══ */
+.act-feed{display:flex;flex-direction:column}
+.act-row{display:flex;align-items:flex-start;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);transition:background .13s;cursor:default}
+.act-row:last-child{border-bottom:none}
+.act-row:hover{background:rgba(44,95,232,.025)}
+.act-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;margin-top:1px}
+.act-dot-ok{background:rgba(31,166,114,.12)}.act-dot-pend{background:rgba(224,128,32,.12)}.act-dot-rej{background:rgba(217,64,64,.1)}.act-dot-info{background:rgba(44,95,232,.1)}
+.act-body{flex:1;min-width:0}
+.act-name{font-size:.83rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-sub{font-size:.73rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4}
+.act-time{font-size:.66rem;color:var(--light);flex-shrink:0;font-family:'IBM Plex Mono',monospace;margin-top:4px}
+
+/* ═══ GLOBAL SEARCH ═══ */
+#gSearch{position:fixed;inset:0;z-index:9800;background:rgba(10,20,40,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:none;align-items:flex-start;justify-content:center;padding:12vh 16px 16px}
+#gSearch.show{display:flex;animation:fadeIn .18s ease}
+.gs-box{width:100%;max-width:580px;background:var(--surface);border-radius:20px;box-shadow:0 40px 90px rgba(0,0,0,.35);overflow:hidden;border:1px solid var(--border)}
+.gs-inp-row{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border)}
+.gs-icon{font-size:1.1rem;color:var(--muted);flex-shrink:0}
+.gs-inp{flex:1;border:none;outline:none;font-family:'Noto Sans Thai',sans-serif;font-size:1.02rem;background:transparent;color:var(--text)}
+.gs-inp::placeholder{color:var(--light)}
+.gs-esc{font-size:.68rem;color:var(--light);flex-shrink:0;background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-family:'IBM Plex Mono',monospace}
+.gs-body{max-height:58vh;overflow-y:auto}
+.gs-empty{padding:36px;text-align:center;color:var(--muted);font-size:.84rem}
+.gs-tip{padding:10px 18px 14px;font-size:.7rem;color:var(--light);display:flex;gap:12px;flex-wrap:wrap}
+.gs-tip span{display:flex;align-items:center;gap:5px}
+.gs-tip kbd{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:'IBM Plex Mono',monospace;font-size:.65rem}
+.gs-sec{padding:6px 18px 3px;font-size:.6rem;font-weight:700;color:var(--light);letter-spacing:1.5px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace}
+.gs-item{display:flex;align-items:center;gap:12px;padding:10px 18px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border)}
+.gs-item:last-child{border-bottom:none}
+.gs-item:hover,.gs-item.hl{background:rgba(44,95,232,.06)}
+.gs-ic{width:36px;height:36px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.gs-main{flex:1;min-width:0}
+.gs-name{font-size:.86rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gs-sub{font-size:.72rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gs-badge{font-size:.65rem;color:var(--light);font-family:'IBM Plex Mono',monospace;flex-shrink:0}
+body.dark .gs-box{background:var(--surface);border-color:var(--border)}
+body.dark .gs-item:hover,body.dark .gs-item.hl{background:rgba(255,255,255,.05)}
+body.dark .gs-inp{color:var(--text)}
+
+/* ═══ PRINT STOCK ═══ */
+@media print{
+  .sidebar,.topbar,.bot-nav,.cart-fab,.page-hd .pg-act,.fbar,.chip-row,.btn,.isel,.sw,
+  #toastStack,#gSearch,#actCard,.home-hero,#section-home .stats-grid{display:none!important}
+  .main{margin-left:0!important}.page-c{padding:0!important}
+  body::before{content:'รายงานสต็อกพัสดุ — พิมพ์: ' attr(data-today);display:block;font-size:.9rem;font-weight:700;padding:0 0 10px;border-bottom:2px solid #000;margin-bottom:12px}
+  .card{box-shadow:none!important;border:1px solid #bbb!important;border-radius:4px!important}
+  .dt thead th{background:#f0f0f0!important;color:#333!important;border-bottom:2px solid #aaa!important;position:static!important}
+}
 </style>
 </head>
 <body>
+<div id="toastStack"></div>
 
 <!-- ══ PAGE LOADER ══ -->
 <div id="PL">
@@ -621,6 +732,7 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
     <button class="tb-ham" onclick="toggleSidebar()">☰</button>
     <div class="tb-title" id="tbTitle">หน้าหลัก</div>
     <div class="tb-clock mono" id="clock"></div>
+    <button onclick="openGSearch()" title="ค้นหา (/ )" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:.88rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:5px" id="gsBtn">🔍<span style="font-size:.65rem;font-family:'IBM Plex Mono',monospace;opacity:.7">/</span></button>
     <button onclick="toggleTheme()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:.9rem;cursor:pointer;color:var(--text)" id="themeBtn">🌙</button>
     <div class="guest-hint" id="guestLoginBtn" onclick="requirePin('request')">🔑 เข้าสู่ระบบ</div>
     <div class="tb-ava" id="topAva" onclick="nav('profile')">-</div>
@@ -646,7 +758,7 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
             <button class="btn btn-gold" id="heroLoginBtn" onclick="requirePin('request')">🔑 เข้าสู่ระบบ</button>
             <button class="btn-hero-ol" id="heroReqBtn" onclick="nav('request')" style="display:none">🛒 เบิกพัสดุ</button>
             <button class="btn-hero-ol" onclick="refreshHome()">🔄 รีเฟรช</button>
-            <button class="btn-hero-ol" onclick="showDebugPanel()" title="ทดสอบการเชื่อมต่อ GAS" style="opacity:.55;font-size:.75rem">🔌</button>
+            <button class="btn-hero-ol" onclick="showDebugPanel()" style="opacity:.18;font-size:.6rem;padding:2px 5px;min-width:0;line-height:1">·</button>
           </div>
         </div>
       </div>
@@ -665,6 +777,12 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
           <div class="stat-val" id="s2">—</div>
           <div class="stat-lbl">ใกล้หมด</div>
           <div class="stat-ac" style="background:var(--red)"></div>
+        </div>
+        <div class="stat-c" onclick="navZeroStock()" style="cursor:pointer">
+          <div class="stat-ic-wrap" style="background:rgba(80,80,80,.1)">🚫</div>
+          <div class="stat-val" id="s6">—</div>
+          <div class="stat-lbl">พัสดุที่หมด</div>
+          <div class="stat-ac" style="background:#888"></div>
         </div>
         <div class="stat-c">
           <div class="stat-ic-wrap" style="background:rgba(224,128,32,.1)">⏳</div>
@@ -685,6 +803,15 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
           <div class="stat-ac" style="background:var(--teal)"></div>
         </div>
       </div>
+      <!-- Recent Activity -->
+      <div class="card mb-3" id="actCard" style="display:none">
+        <div class="card-hd">
+          <h2 class="card-ttl">⚡ รายการล่าสุด</h2>
+          <span id="actMore" style="font-size:.72rem;color:var(--muted);cursor:pointer" onclick="nav('history')">ดูทั้งหมด →</span>
+        </div>
+        <div class="act-feed" id="actFeed"></div>
+      </div>
+
       <!-- Stock table -->
       <div class="card mb-3">
         <div class="card-hd">
@@ -765,6 +892,11 @@ body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
           <button class="btn btn-ghost btn-sm" onclick="loadProducts()">🔄</button>
           <button class="btn btn-gold" onclick="openProdModal()">➕ เพิ่มพัสดุ</button>
         </div>
+      </div>
+      <div class="chip-row" id="catChips">
+        <button class="chip on" data-cat="" onclick="selectCatChip(this,'')">ทั้งหมด</button>
+        <button class="chip chip-orange" data-cat="__low" onclick="selectCatChip(this,'__low')">⚠️ ใกล้หมด</button>
+        <button class="chip chip-red" data-cat="__zero" onclick="selectCatChip(this,'__zero')">🚫 หมดแล้ว</button>
       </div>
       <div class="fbar" style="margin-bottom:12px">
         <div class="sw"><span class="si">🔍</span><input type="text" class="sinp" id="prodSearch" placeholder="ค้นหาชื่อ / รหัส / บาร์โค้ด..." oninput="filterProdTable()"></div>
@@ -1636,19 +1768,7 @@ function showLoading(msg) {
   Swal.fire({ title: msg || 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => { stripAriaHidden(); Swal.showLoading(); } });
 }
 function showOk(msg) {
-  _swalpre();
-  // Use timer + confirm button so it's always visible regardless of popup position
-  Swal.fire({
-    icon: 'success',
-    title: '✅ สำเร็จ',
-    text: msg || 'บันทึกเรียบร้อย',
-    timer: 2500,
-    timerProgressBar: true,
-    showConfirmButton: true,
-    confirmButtonText: 'ตกลง',
-    confirmButtonColor: '#1fa672',
-    didOpen: stripAriaHidden,
-  });
+  showToast('✅', msg || 'บันทึกเรียบร้อย', 'ok');
 }
 function showErr(msg) {
   _swalpre();
@@ -1667,7 +1787,21 @@ function showErr(msg) {
   document.addEventListener('hidden.bs.modal', () => setTimeout(stripAriaHidden, 50));
   // Close PIN overlay with Escape key
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && $('pinOv')?.classList.contains('show')) hidePinOv();
+    if (e.key === 'Escape') {
+      if ($('pinOv')?.classList.contains('show')) hidePinOv();
+      if ($('gSearch')?.classList.contains('show')) closeGSearch();
+    }
+    // Open global search with / (only when not focused on input)
+    const tag = document.activeElement?.tagName;
+    const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (e.key === '/' && !inInput && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      openGSearch();
+    }
+    // N = เบิกพัสดุ (only when logged in and not in input)
+    if ((e.key === 'n' || e.key === 'N') && !inInput && !e.ctrlKey && !e.metaKey) {
+      if (CU) nav('request');
+    }
   });
 })();
 
@@ -2093,6 +2227,8 @@ function _restoreSession() {
 (async function init() {
   applyTheme();
   startClock();
+  // Set print date on body
+  document.body.setAttribute('data-today', new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }));
   // Restore login session from previous page load
   const savedUser = _restoreSession();
   if (savedUser) { CU = savedUser; }
@@ -2461,6 +2597,160 @@ function logout() {
   });
 }
 
+// ─── TOAST NOTIFICATIONS ──────────────────────────────────
+function showToast(icon, msg, type = 'ok', dur = 3200) {
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+  const item = document.createElement('div');
+  item.className = `toast-item toast-${type}`;
+  item.innerHTML = `<span class="toast-ic">${icon}</span><span class="toast-msg">${esc(msg)}</span><button class="toast-close" onclick="this.closest('.toast-item').remove()">✕</button>`;
+  stack.appendChild(item);
+  setTimeout(() => {
+    item.classList.add('out');
+    setTimeout(() => item.remove(), 280);
+  }, dur);
+}
+
+// ─── NAVIGATE TO ZERO STOCK ───────────────────────────────
+function navZeroStock() {
+  nav('products');
+  setTimeout(() => {
+    const sf = $('prodStockF');
+    if (sf) { sf.value = 'zero'; filterProdTable(); }
+    // Sync chip
+    document.querySelectorAll('#catChips .chip').forEach(c => c.classList.remove('on'));
+    const zchip = document.querySelector('#catChips .chip[data-cat="__zero"]');
+    if (zchip) zchip.classList.add('on');
+  }, 120);
+}
+
+// ─── CATEGORY CHIPS ───────────────────────────────────────
+function renderCatChips(list) {
+  const row = document.getElementById('catChips');
+  if (!row) return;
+  const cats = [...new Set(list.map(p => p.category).filter(Boolean))].sort();
+  // Keep fixed chips (ทั้งหมด, ใกล้หมด, หมดแล้ว) + add category chips
+  const fixed = row.querySelectorAll('[data-cat=""], [data-cat="__low"], [data-cat="__zero"]');
+  // Remove old category chips (data-cat not starting with __)
+  row.querySelectorAll('.chip:not([data-cat=""]):not([data-cat="__low"]):not([data-cat="__zero"])').forEach(c => c.remove());
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.dataset.cat = cat;
+    btn.textContent = cat;
+    btn.onclick = () => selectCatChip(btn, cat);
+    row.appendChild(btn);
+  });
+}
+function selectCatChip(el, cat) {
+  document.querySelectorAll('#catChips .chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  if (cat === '__low') {
+    const sf = $('prodStockF'); if (sf) sf.value = 'low';
+    const cf = $('prodCatF'); if (cf) cf.value = '';
+  } else if (cat === '__zero') {
+    const sf = $('prodStockF'); if (sf) sf.value = 'zero';
+    const cf = $('prodCatF'); if (cf) cf.value = '';
+  } else {
+    const sf = $('prodStockF'); if (sf) sf.value = '';
+    const cf = $('prodCatF'); if (cf) cf.value = cat;
+  }
+  filterProdTable();
+}
+
+// ─── RECENT ACTIVITY ──────────────────────────────────────
+function renderRecentActivity(reqs) {
+  const card = $('actCard');
+  const feed = $('actFeed');
+  if (!card || !feed) return;
+  if (!reqs || !reqs.length) {
+    if (CU?.role === 'Admin') { card.style.display = ''; feed.innerHTML = '<div style="padding:18px 20px;color:var(--muted);font-size:.83rem">ยังไม่มีรายการ</div>'; }
+    return;
+  }
+  card.style.display = '';
+  const statusMap = {
+    'Approved': { dot: 'act-dot-ok', ic: '✅' },
+    'Rejected': { dot: 'act-dot-rej', ic: '❌' },
+    'Pending':  { dot: 'act-dot-pend', ic: '⏳' },
+  };
+  feed.innerHTML = reqs.slice(0, 6).map(r => {
+    const s = statusMap[r.status] || { dot: 'act-dot-info', ic: '📋' };
+    const items = Array.isArray(r.items) ? r.items.map(i => `${esc(i.name)} ×${i.qty}`).join(', ') : esc(r.items || '—');
+    const time = r.date ? fmtDate(r.date) : '—';
+    return `<div class="act-row">
+      <div class="act-dot ${s.dot}">${s.ic}</div>
+      <div class="act-body">
+        <div class="act-name">${esc(r.requester || r.user || '—')}<span class="muted" style="font-weight:400"> · ${esc(r.department || '')}</span></div>
+        <div class="act-sub">${items}</div>
+      </div>
+      <div class="act-time">${time}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── GLOBAL SEARCH ────────────────────────────────────────
+let _gsIdx = -1;
+function openGSearch() {
+  const gs = $('gSearch');
+  if (!gs) return;
+  gs.classList.add('show');
+  const inp = $('gsInp');
+  if (inp) { inp.value = ''; inp.focus(); }
+  _gsIdx = -1;
+  runGSearch();
+}
+function closeGSearch(e) {
+  if (e instanceof Event && e.target !== $('gSearch')) return;
+  $('gSearch')?.classList.remove('show');
+}
+function runGSearch() {
+  const q = ($('gsInp')?.value || '').trim().toLowerCase();
+  const body = $('gsBody');
+  if (!body) return;
+  _gsIdx = -1;
+  if (!q) {
+    body.innerHTML = '<div class="gs-tip"><span><kbd>↑↓</kbd> เลื่อน</span><span><kbd>Enter</kbd> เปิด</span><span><kbd>Esc</kbd> ปิด</span></div>';
+    return;
+  }
+  const prods = ALL_PRODS.filter(p =>
+    p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || (p.barcode || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (!prods.length) {
+    body.innerHTML = `<div class="gs-empty">ไม่พบ "${esc(q)}"</div>`;
+    return;
+  }
+  const st = p => { const s = Number(p.stock); const m = Number(p.minStock || 0); return s <= 0 ? `<span class="s-low">หมด</span>` : s <= m ? `<span class="s-warn">${s}</span>` : `<span class="s-ok">${s}</span>`; };
+  body.innerHTML = `<div class="gs-sec">พัสดุ (${prods.length})</div>` +
+    prods.map((p, i) => `<div class="gs-item" data-idx="${i}" onclick="gsSelectProd('${esc(p.id)}')">
+      <div class="gs-ic">${p.image ? `<img src="${esc(p.image)}" style="width:36px;height:36px;object-fit:cover;border-radius:8px" onerror="this.outerHTML='📦'">` : '📦'}</div>
+      <div class="gs-main">
+        <div class="gs-name">${esc(p.name)}</div>
+        <div class="gs-sub">${esc(p.category || '—')} · ${esc(p.location || '—')}</div>
+      </div>
+      <div class="gs-badge">${st(p)} ${esc(p.unit || '')}</div>
+    </div>`).join('');
+}
+function gsSelectProd(id) {
+  $('gSearch')?.classList.remove('show');
+  nav('products');
+  setTimeout(() => {
+    const s = $('prodSearch'); if (s) { s.value = id; filterProdTable(); }
+  }, 120);
+}
+// Arrow key navigation in global search
+document.addEventListener('keydown', e => {
+  const gs = $('gSearch');
+  if (!gs?.classList.contains('show')) return;
+  const items = gs.querySelectorAll('.gs-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _gsIdx = Math.min(_gsIdx + 1, items.length - 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _gsIdx = Math.max(_gsIdx - 1, 0); }
+  else if (e.key === 'Enter' && _gsIdx >= 0) { e.preventDefault(); items[_gsIdx]?.click(); return; }
+  else return;
+  items.forEach((it, i) => it.classList.toggle('hl', i === _gsIdx));
+  items[_gsIdx]?.scrollIntoView({ block: 'nearest' });
+});
+
 // ─── HOME / DASHBOARD ─────────────────────────────────────
 function refreshHome() { cc('products'); loadPubStock(true); loadDashboard(); }
 
@@ -2570,34 +2860,39 @@ function filterPubStock() {
 }
 
 async function loadDashboard() {
+  // Show skeleton while loading
+  ['s1','s2','s3','s4','s6'].forEach(id => {
+    const el = $(id); if (!el) return;
+    el.innerHTML = '<span class="skel skel-val"></span>';
+  });
   try {
     const res = await api('getDashboardStats').catch(() => null);
-    // Handle null, empty {}, or {success:false, message:...}
     if (!res || res.success === false) {
-      // Fallback: compute basic stats from already-loaded products
       if (ALL_PRODS.length) _fillStatsFromProds();
       return;
     }
-    // Use ?? 0 for numbers so we show 0 instead of '—' when field is missing
     if ($('s1')) $('s1').textContent = (res.totalProducts ?? 0) || 0;
     if ($('s2')) $('s2').textContent = res.lowStockCount  ?? 0;
     if ($('s3')) $('s3').textContent = res.pendingCount   ?? 0;
     if ($('s4')) $('s4').textContent = res.todayCount     ?? 0;
     if ($('s5')) $('s5').textContent = res.totalValue     ? fmtMoney(res.totalValue) : '0';
-    // Pending badge
+    if ($('s6')) $('s6').textContent = res.outOfStockCount ?? ALL_PRODS.filter(p => Number(p.stock) <= 0).length;
+    // Pending badge with pulse
     const badge = $('pendingBadge');
     const pc = Number(res.pendingCount || 0);
-    if (badge && pc > 0) { badge.style.display = ''; badge.textContent = pc; }
-    else if (badge) badge.style.display = 'none';
+    if (badge && pc > 0) { badge.style.display = ''; badge.textContent = pc; badge.classList.add('pulse'); }
+    else if (badge) { badge.style.display = 'none'; badge.classList.remove('pulse'); }
     // Low stock table
     if ($('lowTb') && res.lowStockItems?.length) renderLowStock(res.lowStockItems);
     else if ($('lowTb') && ALL_PRODS.length) {
-      // Build from loaded products
       const low = ALL_PRODS.filter(p => Number(p.stock) <= Number(p.minStock) && Number(p.minStock) > 0);
       renderLowStock(low.map(p => ({ id: p.id, name: p.name, stock: p.stock, minStock: p.minStock, unit: p.unit })));
     }
     // Trend chart
     if (res.monthlyTrend?.length) renderTrendChart(res.monthlyTrend);
+    // Recent activity
+    if (res.recentRequests?.length) renderRecentActivity(res.recentRequests);
+    else if (CU) renderRecentActivity([]);
   } catch (e) { console.warn('Dashboard stats error:', e); _fillStatsFromProds(); }
 }
 // Fallback: fill basic stats from ALL_PRODS cache
@@ -2605,10 +2900,12 @@ function _fillStatsFromProds() {
   if (!ALL_PRODS.length) return;
   const active = ALL_PRODS.filter(p => !p.status || p.status === 'Active' || p.status === 'Approved');
   const low    = active.filter(p => Number(p.stock) <= Number(p.minStock) && Number(p.minStock) > 0);
+  const oos    = active.filter(p => Number(p.stock) <= 0);
   if ($('s1')) $('s1').textContent = active.length;
   if ($('s2')) $('s2').textContent = low.length;
   if ($('s3')) $('s3').textContent = '—';
   if ($('s4')) $('s4').textContent = '—';
+  if ($('s6')) $('s6').textContent = oos.length;
   if ($('lowTb') && low.length) renderLowStock(low.map(p => ({ id: p.id, name: p.name, stock: p.stock, minStock: p.minStock, unit: p.unit })));
 }
 function renderLowStock(items) {
@@ -2655,6 +2952,7 @@ async function loadProducts() {
     fillPubCatFilter(list);
     // Fill cat filter for products page
     const cats = await loadCatsIfNeeded();
+    renderCatChips(list);
     renderProdTable(list);
   } catch (e) { tb.innerHTML = emptyR(9, '⚠️ ' + e.message); }
 }
@@ -4186,6 +4484,24 @@ function _findProd(code, all) {
   return ALL_PRODS.find(p => p.barcode === c && ok(p)) || ALL_PRODS.find(p => p.id === c && ok(p)) || null;
 }
 </script>
+
+<!-- ══ GLOBAL SEARCH ══ -->
+<div id="gSearch" onclick="closeGSearch(event)">
+  <div class="gs-box" onclick="event.stopPropagation()">
+    <div class="gs-inp-row">
+      <span class="gs-icon">🔍</span>
+      <input class="gs-inp" id="gsInp" placeholder="ค้นหาพัสดุ, ประวัติ..." oninput="runGSearch()" autocomplete="off" spellcheck="false">
+      <span class="gs-esc">Esc</span>
+    </div>
+    <div class="gs-body" id="gsBody">
+      <div class="gs-tip">
+        <span><kbd>↑↓</kbd> เลื่อน</span>
+        <span><kbd>Enter</kbd> เปิด</span>
+        <span><kbd>Esc</kbd> ปิด</span>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══ BOTTOM NAVIGATION (mobile only) ══ -->
 <nav class="bot-nav" id="botNav" aria-label="เมนูหลัก">
