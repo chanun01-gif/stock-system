@@ -267,6 +267,8 @@ textarea.fc{min-height:66px;resize:vertical}
 .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px}
 .prod-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .2s}
 .prod-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:rgba(44,95,232,.28)}
+.prod-card.oos{opacity:.55;filter:grayscale(.45)}
+.prod-card.oos:hover{transform:none;box-shadow:none;border-color:var(--border)}
 .prod-img{height:115px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:2.3rem;overflow:hidden}
 .prod-img img{width:100%;height:100%;object-fit:cover}
 .prod-body{padding:10px}
@@ -491,15 +493,28 @@ body.dark .swal2-actions .swal2-cancel{background:rgba(255,255,255,.1)!important
 body.dark .swal2-validation-message{background:rgba(217,64,64,.15)!important;color:#f08585!important}
 @media(max-width:640px){body.dark .dt-r tbody tr{background:var(--surface);border-color:var(--border)}}
 
+/* ═══ BOTTOM NAV ═══ */
+.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1.5px solid var(--border);z-index:200;box-shadow:0 -2px 12px rgba(0,0,0,.08);padding-bottom:env(safe-area-inset-bottom,0px)}
+.bot-nav-inner{display:flex;height:58px}
+.bot-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--muted);font-family:'Noto Sans Thai',sans-serif;font-size:.6rem;font-weight:600;cursor:pointer;padding:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:color .15s;position:relative}
+.bot-btn .bi{font-size:1.25rem;line-height:1;transition:transform .15s}
+.bot-btn.on{color:var(--gold)}
+.bot-btn.on .bi{transform:translateY(-1px)}
+.bot-btn.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:32px;height:2.5px;background:var(--gold);border-radius:0 0 4px 4px}
+body.dark .bot-nav{background:var(--surface);border-top-color:var(--border)}
+
 /* ═══ MOBILE ═══ */
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
   .sb-ov{display:block;opacity:0;pointer-events:none;transition:opacity .28s}.sb-ov.open{opacity:1;pointer-events:auto}
   .main{margin-left:0}.tb-ham{display:flex}
-  .page-c{padding:12px}.stats-grid{grid-template-columns:repeat(2,1fr);gap:9px}
+  .page-c{padding:12px;padding-bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:9px}
   .prod-grid{grid-template-columns:repeat(2,1fr);gap:9px}
   .f2,.f3{grid-template-columns:1fr}
   .page-hd h1{font-size:1.08rem}.tb-clock{display:none}
+  .bot-nav{display:block}
+  .cart-fab{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
 }
 @media(max-width:360px){.prod-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr}}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
@@ -2047,6 +2062,8 @@ function nav(id) {
   const sec = $('section-' + id);
   if (sec) sec.classList.add('on');
   document.querySelectorAll('.nav-btn[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === id));
+  // Sync bottom nav active state
+  ['home','request','history'].forEach(k => { const bb = $('bb-'+k); if (bb) bb.classList.toggle('on', k === id); });
   const tbt = $('tbTitle');
   if (tbt) tbt.textContent = PAGE_TITLES[id] || id;
   // Cart FAB — show only on request page if logged in
@@ -2926,37 +2943,41 @@ function renderProdGrid(list) {
   if (!grid) return;
   const q = ($('reqSearch')?.value || '').toLowerCase();
   const cat = $('reqCatF')?.value || '';
-  const active = list.filter(p => {
+  // Show all active products (including out-of-stock) — OOS sorted to end
+  const visible = list.filter(p => {
     const s = String(p.status || 'Active');
-    return (s === 'Active' || s === 'Approved') && Number(p.stock || 0) > 0;
+    return s === 'Active' || s === 'Approved';
   }).filter(p =>
     (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || (p.barcode || '').includes(q)) &&
     (!cat || p.category === cat)
   );
-  if (!active.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📦</div>ไม่พบพัสดุที่ต้องการ</div>`; return; }
+  if (!visible.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📦</div>ไม่พบพัสดุที่ต้องการ</div>`; return; }
+  // In-stock first, out-of-stock last
+  const sorted = [...visible].sort((a, b) => (Number(a.stock || 0) <= 0) - (Number(b.stock || 0) <= 0));
   const settings = gc('settings') || {};
   const maxQ = parseInt(settings.maxRequestQty || settings.setMaxQty || '50');
-  grid.innerHTML = active.map(p => {
+  grid.innerHTML = sorted.map(p => {
     const st = Number(p.stock || 0);
     const mn = Number(p.minStock || 0);
-    // Deduct already-in-cart qty from displayed available stock
     const inCart = CART.find(c => c.productId === p.id)?.qty || 0;
     const available = Math.max(0, st - inCart);
     const effectiveMax = Math.min(available, maxQ);
+    const isOos = st <= 0;
     const cl = available === 0 ? 's-low' : available <= mn ? 's-warn' : 's-ok';
-    const stockLabel = available === 0
-      ? `<span class="s-low">หมด${inCart > 0 ? ` (ในตะกร้า ${inCart})` : ''}</span>`
-      : `คงเหลือ <b>${available}</b> ${esc(p.unit || '')}${inCart > 0 ? ` <span style="color:var(--gold);font-size:.72rem">(ตะกร้า ${inCart})</span>` : ''}`;
+    const stockLabel = isOos
+      ? `<span class="s-low">⚠️ สินค้าหมด</span>`
+      : available === 0
+        ? `<span class="s-low">หมด${inCart > 0 ? ` (ในตะกร้า ${inCart})` : ''}</span>`
+        : `คงเหลือ <b>${available}</b> ${esc(p.unit || '')}${inCart > 0 ? ` <span style="color:var(--gold);font-size:.72rem">(ตะกร้า ${inCart})</span>` : ''}`;
     const img = p.image ? `<img src="${esc(p.image)}" alt="" onerror="this.parentNode.innerHTML='📦'">` : '📦';
-    const btnDisabled = available === 0;
-    return `<div class="prod-card">
+    return `<div class="prod-card${isOos ? ' oos' : ''}">
       <div class="prod-img">${img}</div>
       <div class="prod-body">
         <div class="prod-name" title="${esc(p.name)}">${esc(p.name)}</div>
         <div class="prod-meta">${esc(p.category || '')} · ${esc(p.location || '')}</div>
         <div class="prod-stock ${cl}" style="margin-bottom:7px">${stockLabel}</div>
-        ${btnDisabled
-          ? `<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;opacity:.5;cursor:not-allowed" disabled>❌ สต็อกหมด</button>`
+        ${isOos || available === 0
+          ? `<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;opacity:.45;cursor:not-allowed" disabled>🚫 เบิกไม่ได้</button>`
           : `<button class="btn btn-gold btn-sm" style="width:100%;justify-content:center" onclick="addToCart('${esc(p.id)}','${esc(p.name)}',${effectiveMax},'${esc(p.unit || '')}')">🛒 ใส่ตะกร้า</button>`
         }
       </div>
@@ -3968,5 +3989,20 @@ function _findProd(code, all) {
   return ALL_PRODS.find(p => p.barcode === c && ok(p)) || ALL_PRODS.find(p => p.id === c && ok(p)) || null;
 }
 </script>
+
+<!-- ══ BOTTOM NAVIGATION (mobile only) ══ -->
+<nav class="bot-nav" id="botNav" aria-label="เมนูหลัก">
+  <div class="bot-nav-inner">
+    <button class="bot-btn on" id="bb-home" onclick="nav('home')">
+      <span class="bi">🏠</span><span>หน้าหลัก</span>
+    </button>
+    <button class="bot-btn" id="bb-request" onclick="nav('request')">
+      <span class="bi">🛒</span><span>เบิกพัสดุ</span>
+    </button>
+    <button class="bot-btn" id="bb-history" onclick="nav('history')">
+      <span class="bi">📋</span><span>ประวัติ</span>
+    </button>
+  </div>
+</nav>
 </body>
 </html>
