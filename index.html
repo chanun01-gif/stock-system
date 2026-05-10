@@ -9,11 +9,11 @@
 <link rel="apple-touch-icon" id="appFaviconApple" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
 <style>
 /* ═══ RESET & VARS ═══ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1519,24 +1519,23 @@ function hidePL(msg) {
 }
 function setPLtxt(msg) { const el = $('PLtxt'); if (el) el.textContent = msg; }
 
-// ─── SWAL GLOBAL FIX ──────────────────────────────────────
-// Problem: Bootstrap 5 sets aria-hidden / inert on body children when modal opens.
-// Fix: Strip those attributes before/during every Swal call.
-// We do NOT remove body overflow:hidden (that causes page jump = "กระตุก").
-// Position/padding is fixed via CSS instead.
-function _fixBodyForSwal() {
+// ─── ARIA-HIDDEN / SWAL FIX ───────────────────────────────
+// Bootstrap 5 sets aria-hidden/inert on body children when modal opens,
+// which hides Swal popups. Strip those attributes as needed.
+// We do NOT remove body overflow:hidden (causes page jump = "กระตุก").
+function stripAriaHidden() {
   document.body.querySelectorAll(':scope > *').forEach(el => {
     el.removeAttribute('aria-hidden');
     el.removeAttribute('inert');
   });
 }
 function _swalpre() {
-  _fixBodyForSwal();
+  stripAriaHidden();
   document.activeElement?.blur();
 }
 function showLoading(msg) {
   _swalpre();
-  Swal.fire({ title: msg || 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => { _fixBodyForSwal(); Swal.showLoading(); } });
+  Swal.fire({ title: msg || 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => { stripAriaHidden(); Swal.showLoading(); } });
 }
 function showOk(msg) {
   _swalpre();
@@ -1550,7 +1549,7 @@ function showOk(msg) {
     showConfirmButton: true,
     confirmButtonText: 'ตกลง',
     confirmButtonColor: '#1fa672',
-    didOpen: _fixBodyForSwal,
+    didOpen: stripAriaHidden,
   });
 }
 function showErr(msg) {
@@ -1561,17 +1560,10 @@ function showErr(msg) {
     text: String(msg || 'กรุณาลองใหม่อีกครั้ง'),
     confirmButtonText: 'ตกลง',
     confirmButtonColor: '#d94040',
-    didOpen: _fixBodyForSwal,
+    didOpen: stripAriaHidden,
   });
 }
 
-// ─── ARIA-HIDDEN FIX ──────────────────────────────────────
-function stripAriaHidden() {
-  document.body.querySelectorAll(':scope > *').forEach(el => {
-    el.removeAttribute('aria-hidden');
-    el.removeAttribute('inert');
-  });
-}
 (function setupAriaFix() {
   document.addEventListener('shown.bs.modal', stripAriaHidden);
   document.addEventListener('hidden.bs.modal', () => setTimeout(stripAriaHidden, 50));
@@ -2040,7 +2032,7 @@ function startClock() {
     if (cl) cl.textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   }
   tick();
-  setInterval(tick, 30000);
+  setInterval(tick, 60000);
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────
@@ -2284,7 +2276,7 @@ function logout() {
     title: 'ออกจากระบบ?', icon: 'question',
     showCancelButton: true, confirmButtonText: 'ออก',
     cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040',
-    didOpen: _fixBodyForSwal,
+    didOpen: stripAriaHidden,
   }).then(r => {
     if (!r.isConfirmed) return;
     CU = null; CART = []; _allUsers = []; _HIST_CACHE = null;
@@ -2407,7 +2399,10 @@ function renderPubStock(list) {
     </tr>`;
   }).join('');
 }
-function filterPubStock() { renderPubStock(ALL_PRODS); }
+function filterPubStock() {
+  clearTimeout(_STOCK_TIMER);
+  _STOCK_TIMER = setTimeout(() => renderPubStock(ALL_PRODS), 150);
+}
 
 async function loadDashboard() {
   try {
@@ -2504,15 +2499,18 @@ async function loadCatsIfNeeded() {
   return ALL_CATS;
 }
 function filterProdTable() {
-  const q = $('prodSearch')?.value?.toLowerCase() || '';
-  const cat = $('prodCatF')?.value || '';
-  const stF = $('prodStockF')?.value || '';
-  const filtered = ALL_PRODS.filter(p =>
-    (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || (p.barcode || '').includes(q)) &&
-    (!cat || p.category === cat) &&
-    (!stF || (stF === 'zero' && Number(p.stock) === 0) || (stF === 'low' && Number(p.stock) > 0 && Number(p.stock) <= Number(p.minStock)) || (stF === 'ok' && Number(p.stock) > Number(p.minStock)))
-  );
-  renderProdTable(filtered);
+  clearTimeout(_TABLE_TIMER);
+  _TABLE_TIMER = setTimeout(() => {
+    const q = $('prodSearch')?.value?.toLowerCase() || '';
+    const cat = $('prodCatF')?.value || '';
+    const stF = $('prodStockF')?.value || '';
+    const filtered = ALL_PRODS.filter(p =>
+      (!q || p.name?.toLowerCase().includes(q) || p.id?.toLowerCase().includes(q) || (p.barcode || '').includes(q)) &&
+      (!cat || p.category === cat) &&
+      (!stF || (stF === 'zero' && Number(p.stock) === 0) || (stF === 'low' && Number(p.stock) > 0 && Number(p.stock) <= Number(p.minStock)) || (stF === 'ok' && Number(p.stock) > Number(p.minStock)))
+    );
+    renderProdTable(filtered);
+  }, 150);
 }
 function renderProdTable(list) {
   const tb = $('prodTb');
@@ -2631,7 +2629,7 @@ async function handleProd(e) {
 }
 async function delProd(row, name) {
   _swalpre();
-  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `"${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `"${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -2812,7 +2810,7 @@ async function editReqQty(row, currentQty, prodName, unit, status) {
     confirmButtonText: '💾 บันทึก',
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#2c5fe8',
-    didOpen: _fixBodyForSwal,
+    didOpen: stripAriaHidden,
     inputValidator: v => { if (!v || v < 1) return 'จำนวนต้องอย่างน้อย 1'; },
   });
   if (!r.isConfirmed) return;
@@ -2855,7 +2853,7 @@ async function cancelReq(row, prodName, qty, status) {
     confirmButtonText: '🚫 ยืนยันยกเลิก',
     cancelButtonText: 'ปิด',
     confirmButtonColor: '#d94040',
-    didOpen: _fixBodyForSwal,
+    didOpen: stripAriaHidden,
   });
   if (!r.isConfirmed) return;
   showLoading('กำลังยกเลิก...');
@@ -2891,7 +2889,7 @@ async function doBulk(status) {
   _swalpre();
   const r = await Swal.fire({
     title: `${status === 'Approved' ? 'อนุมัติ' : 'ปฏิเสธ'} ${rows.length} รายการ?`,
-    icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', didOpen: _fixBodyForSwal
+    icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', didOpen: stripAriaHidden
   });
   if (!r.isConfirmed) return;
   showLoading();
@@ -2965,7 +2963,10 @@ function renderProdGrid(list) {
     </div>`;
   }).join('');
 }
-function filterProdGrid() { renderProdGrid(ALL_PRODS); }
+function filterProdGrid() {
+  clearTimeout(_GRID_TIMER);
+  _GRID_TIMER = setTimeout(() => renderProdGrid(ALL_PRODS), 150);
+}
 // ─── QTY PICKER MODAL (Bootstrap — always centered, no Swal) ──
 let _qtyTarget = null; // { id, name, maxStock, unit }
 function addToCart(id, name, maxStock, unit) {
@@ -3026,7 +3027,7 @@ function qtyConfirm() {
     text: name,
     timer: 1400, timerProgressBar: true,
     showConfirmButton: false, toast: true, position: 'top-end',
-    didOpen: _fixBodyForSwal,
+    didOpen: stripAriaHidden,
   });
 }
 function openCartModal() { renderCartTb(); bootstrap.Modal.getOrCreateInstance($('cartModal')).show(); }
@@ -3094,7 +3095,7 @@ function removeCart(i) {
 function clearCart() {
   if (!CART.length) return;
   _swalpre();
-  Swal.fire({ title: 'ล้างตะกร้า?', text: 'จะลบรายการทั้งหมด', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal })
+  Swal.fire({ title: 'ล้างตะกร้า?', text: 'จะลบรายการทั้งหมด', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden })
     .then(r => {
       if (!r.isConfirmed) return;
       CART = [];
@@ -3173,6 +3174,10 @@ function resetHistFilter() {
 // History caching — fetch once, filter client-side
 let _HIST_CACHE = null;
 let _HIST_TIMER = null;
+let _GRID_TIMER = null;
+let _TABLE_TIMER = null;
+let _STOCK_TIMER = null;
+let _USERS_TIMER = null;
 
 function resetHistFilter() {
   ['hUser', 'hProd'].forEach(id => { const el = $(id); if (el) el.value = ''; });
@@ -3300,8 +3305,11 @@ async function loadUsers() {
   } catch (e) { tb.innerHTML = emptyR(8, '⚠️ ' + e.message); }
 }
 function filterUsers() {
-  const q = ($('userSearch')?.value || '').toLowerCase();
-  renderUserTable(_allUsersRaw.filter(u => !q || u.name?.toLowerCase().includes(q) || u.department?.toLowerCase().includes(q)));
+  clearTimeout(_USERS_TIMER);
+  _USERS_TIMER = setTimeout(() => {
+    const q = ($('userSearch')?.value || '').toLowerCase();
+    renderUserTable(_allUsersRaw.filter(u => !q || u.name?.toLowerCase().includes(q) || u.department?.toLowerCase().includes(q)));
+  }, 150);
 }
 function renderUserTable(list) {
   const tb = $('usersTb');
@@ -3342,7 +3350,7 @@ async function saveUser(row) {
 }
 async function resetPin(userId, name) {
   _swalpre();
-  const r = await Swal.fire({ title: `รีเซ็ต PIN "${name}"?`, text: 'ผู้ใช้จะต้องกำหนด PIN ใหม่ในการเข้าครั้งหน้า', icon: 'warning', showCancelButton: true, confirmButtonText: 'รีเซ็ต', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: `รีเซ็ต PIN "${name}"?`, text: 'ผู้ใช้จะต้องกำหนด PIN ใหม่ในการเข้าครั้งหน้า', icon: 'warning', showCancelButton: true, confirmButtonText: 'รีเซ็ต', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -3353,7 +3361,7 @@ async function resetPin(userId, name) {
 }
 async function delUser(row, name) {
   _swalpre();
-  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `ลบผู้ใช้ "${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: 'ยืนยันการลบ?', text: `ลบผู้ใช้ "${name}"`, icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -3421,7 +3429,7 @@ async function loadDepts() {
 }
 async function delDept(row, name) {
   _swalpre();
-  const r = await Swal.fire({ title: `ลบฝ่าย "${name}"?`, text: 'ระบบจะตรวจสอบว่ามีผู้ใช้ในฝ่ายนี้หรือไม่', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: `ลบฝ่าย "${name}"?`, text: 'ระบบจะตรวจสอบว่ามีผู้ใช้ในฝ่ายนี้หรือไม่', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -3470,7 +3478,7 @@ async function loadCats() {
 }
 async function delCat(row, name) {
   _swalpre();
-  const r = await Swal.fire({ title: `ลบหมวดหมู่ "${name}"?`, text: 'ระบบจะตรวจสอบว่ามีพัสดุในหมวดนี้หรือไม่', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: `ลบหมวดหมู่ "${name}"?`, text: 'ระบบจะตรวจสอบว่ามีพัสดุในหมวดนี้หรือไม่', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -3519,7 +3527,7 @@ async function loadSups() {
 }
 async function delSup(row, name) {
   _swalpre();
-  const r = await Swal.fire({ title: `ลบซัพพลายเออร์ "${name}"?`, text: 'ถ้ามี Lot อ้างอิง จะเปลี่ยนเป็น "ไม่ใช้งาน" แทน', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: `ลบซัพพลายเออร์ "${name}"?`, text: 'ถ้ามี Lot อ้างอิง จะเปลี่ยนเป็น "ไม่ใช้งาน" แทน', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -3632,7 +3640,7 @@ async function saveDiscordWebhook() {
 }
 async function clearAllNotify() {
   _swalpre();
-  const r = await Swal.fire({ title: 'ล้างค่าแจ้งเตือนทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: 'ล้างค่าแจ้งเตือนทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ล้าง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading();
   try {
@@ -3660,7 +3668,7 @@ async function testLine() {
 // ─── TOOLS ────────────────────────────────────────────────
 async function doRebuild() {
   _swalpre();
-  const r = await Swal.fire({ title: 'Rebuild StockBalance?', text: 'คำนวณยอดสต็อกใหม่ทั้งหมดจาก Lots และ Requests', icon: 'warning', showCancelButton: true, confirmButtonText: 'ดำเนินการ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: _fixBodyForSwal });
+  const r = await Swal.fire({ title: 'Rebuild StockBalance?', text: 'คำนวณยอดสต็อกใหม่ทั้งหมดจาก Lots และ Requests', icon: 'warning', showCancelButton: true, confirmButtonText: 'ดำเนินการ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d94040', didOpen: stripAriaHidden });
   if (!r.isConfirmed) return;
   showLoading('กำลัง Rebuild... อาจใช้เวลาสักครู่');
   try {
@@ -3813,7 +3821,7 @@ async function doImport() {
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: 'นำเข้า', cancelButtonText: 'ยกเลิก',
-    didOpen: _fixBodyForSwal
+    didOpen: stripAriaHidden
   });
   if (!r.isConfirmed) return;
   // BATCH upload — JSONP URL has ~8KB limit, so we split into chunks
@@ -3891,6 +3899,7 @@ async function openCam(ctx) {
   bootstrap.Modal.getOrCreateInstance($('scannerModal')).show();
   await startCam();
 }
+let _SCAN_READER = null; // ZXing BrowserMultiFormatReader instance
 async function startCam() {
   if (!window.ZXing) { showCamErr('ไม่พบ ZXing library'); return; }
   try {
@@ -3899,14 +3908,21 @@ async function startCam() {
     vid.srcObject = _CAM_STREAM;
     await vid.play();
     $('scanStatus').textContent = '✅ กล้องพร้อม — วางบาร์โค้ดในกรอบสีทอง';
-    const reader = new ZXing.BrowserMultiFormatReader();
-    _SCAN_INT = setInterval(async () => {
+    _SCAN_READER = new ZXing.BrowserMultiFormatReader();
+
+    async function scanLoop() {
       if (!_CAM_STREAM) return;
       try {
-        const res = await reader.decodeFromVideoElement(vid);
-        if (res?.text) { clearInterval(_SCAN_INT); _SCAN_INT = null; handleScanResult(res.text); }
-      } catch {}
-    }, 500);
+        const result = await _SCAN_READER.decodeFromVideoElement(vid);
+        // result.getText() is the public API — safe even in minified bundles
+        const text = result && (typeof result.getText === 'function' ? result.getText() : result.text);
+        if (text) { stopCam(); handleScanResult(text); return; }
+      } catch (_) {
+        // ZXing throws NotFoundException every frame without a barcode — expected
+      }
+      if (_CAM_STREAM) _SCAN_INT = setTimeout(scanLoop, 200);
+    }
+    scanLoop();
   } catch (err) {
     showCamErr(err.name === 'NotAllowedError' ? 'ไม่ได้รับอนุญาตใช้กล้อง — เปิดสิทธิ์ใน Settings ก่อน' : 'เปิดกล้องไม่ได้: ' + err.message);
   }
@@ -3917,7 +3933,8 @@ function showCamErr(msg) {
   $('scanStatus').textContent = 'ล้มเหลว';
 }
 function stopCam() {
-  if (_SCAN_INT) { clearInterval(_SCAN_INT); _SCAN_INT = null; }
+  if (_SCAN_READER) { try { _SCAN_READER.reset(); } catch {} _SCAN_READER = null; }
+  if (_SCAN_INT) { clearTimeout(_SCAN_INT); _SCAN_INT = null; }
   if (_CAM_STREAM) { _CAM_STREAM.getTracks().forEach(t => t.stop()); _CAM_STREAM = null; }
   const vid = $('scanVid'); if (vid) vid.srcObject = null;
 }
