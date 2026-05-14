@@ -1782,6 +1782,7 @@ function showLoading(msg) {
   Swal.fire({ title: msg || 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => { stripAriaHidden(); Swal.showLoading(); } });
 }
 function showOk(msg) {
+  Swal.close();
   showToast('✅', msg || 'บันทึกเรียบร้อย', 'ok');
 }
 function showErr(msg) {
