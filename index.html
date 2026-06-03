@@ -1147,6 +1147,11 @@ body.dark .gs-inp{color:var(--text)}
               <button class="btn btn-teal btn-sm" onclick="exportCSV()">📥 Download CSV</button>
             </div>
             <div style="padding:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
+              <div style="font-weight:700;margin-bottom:3px">📋 Export Audit Log</div>
+              <div style="font-size:.77rem;color:var(--muted);margin-bottom:9px">ส่งออกประวัติการดำเนินการทั้งหมดในระบบ (CSV)</div>
+              <button class="btn btn-ghost btn-sm" onclick="exportAuditLog()">📥 Download Audit Log</button>
+            </div>
+            <div style="padding:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
               <div style="font-weight:700;margin-bottom:3px">📂 Import พัสดุจาก CSV</div>
               <div style="font-size:.77rem;color:var(--muted);margin-bottom:3px">คอลัมน์: <span class="mono txs">name*, barcode, category, unit*, price, minStock, initialStock</span></div>
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">
@@ -1227,7 +1232,7 @@ body.dark .gs-inp{color:var(--text)}
   <div class="modal-body"><form id="prodForm" onsubmit="handleProd(event)"><input type="hidden" id="pRow">
     <div class="f2">
       <div class="fg"><label class="flabel">ชื่อพัสดุ *</label><input type="text" class="fc" id="pName" required></div>
-      <div class="fg"><label class="flabel">หมวดหมู่ *</label><select class="fc" id="pCat" required onchange="updateCatName()"><option value="">— เลือก —</option></select><input type="hidden" id="pCatName"></div>
+      <div class="fg"><label class="flabel">หมวดหมู่ *</label><select class="fc" id="pCat" required><option value="">— เลือก —</option></select><input type="hidden" id="pCatName"></div>
     </div>
     <div class="f2">
       <div class="fg"><label class="flabel">บาร์โค้ด</label>
@@ -3105,11 +3110,6 @@ async function openProdModal(enc) {
   }
   bootstrap.Modal.getOrCreateInstance($('prodModal')).show();
 }
-function updateCatName() {
-  const sel = $('pCat');
-  const txt = sel.options[sel.selectedIndex]?.textContent || '';
-  $('pCatName').value = txt === '— เลือกหมวดหมู่ —' ? '' : txt;
-}
 async function handleProd(e) {
   e.preventDefault();
   bootstrap.Modal.getOrCreateInstance($('prodModal')).hide();
@@ -3232,7 +3232,7 @@ async function openInbModal() {
     prodList.filter(p => p.status === 'Active' || !p.status).map(p => ({
       value: p.id,
       text: `${p.name} (${p.unit || ''})`,
-      data: { name: p.name }
+      data: { name: p.name, unit: p.unit || '' }
     }))
   );
   if (!Combo._instances['inProd']) Combo.attach('inProd', { items: prodItems, placeholder: '— ค้นหาพัสดุ —' });
@@ -3256,7 +3256,9 @@ async function handleInbound(e) {
   const prodSel = $('inProd');
   const supSel = $('inSup');
   const productId = prodSel.value;
-  const productName = prodSel.options[prodSel.selectedIndex]?.dataset.name || prodSel.options[prodSel.selectedIndex]?.textContent?.split(' (')[0] || '';
+  const selOpt = prodSel.options[prodSel.selectedIndex];
+  const productName = selOpt?.dataset.name || selOpt?.textContent?.split(' (')[0] || '';
+  const productUnit = selOpt?.dataset.unit || '';
   const supplierName = supSel.options[supSel.selectedIndex]?.dataset.name || '';
   bootstrap.Modal.getOrCreateInstance($('inbModal')).hide();
   showLoading();
@@ -3265,6 +3267,7 @@ async function handleInbound(e) {
     const res = await api('saveInbound', {
       productId,
       productName,
+      unit: productUnit,
       qty: $('inQty').value,          // GAS: data.qty (not quantity)
       receiveDate: $('inDate').value,  // GAS: data.receiveDate (not date)
       expiryDate: $('inExp').value || '-',
@@ -4283,6 +4286,24 @@ async function exportCSV() {
     a.download = 'stock_' + new Date().toLocaleDateString('th-TH').replace(/\//g, '-') + '.csv';
     a.click();
     showOk('Export สำเร็จ');
+  } catch (e) { Swal.close(); showErr(e.message); }
+}
+
+async function exportAuditLog() {
+  showLoading('กำลังโหลด Audit Log...');
+  try {
+    const res = await api('getAuditLog');
+    Swal.close();
+    if (!Array.isArray(res) || !res.length) { showErr('ไม่มีข้อมูล Audit Log'); return; }
+    const H = ['LogID', 'เวลา', 'UserID', 'ชื่อผู้ใช้', 'Action', 'Module', 'รายละเอียด', 'Reference'];
+    const csv = '﻿' + H.join(',') + '\n' +
+      res.map(r => [r.logId, r.timestamp, r.userId, r.userName, r.action, r.module, r.details, r.reference || '']
+        .map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    a.download = 'audit_log_' + new Date().toLocaleDateString('th-TH').replace(/\//g, '-') + '.csv';
+    a.click();
+    showOk('Export Audit Log สำเร็จ');
   } catch (e) { Swal.close(); showErr(e.message); }
 }
 
